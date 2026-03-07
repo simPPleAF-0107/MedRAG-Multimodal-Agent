@@ -35,3 +35,24 @@ Please output a cohesive, well-formatted, professional Medical Report. Include s
 
 Ensure the report is concise but thorough, maintaining clinical terminology appropriate for a healthcare setting.
 """
+
+RISK_ANALYSIS_PROMPT = """Analyze the following patient data and diagnosis to determine clinical risk.
+Patient Data: {patient_data}
+Diagnosis: {diagnosis}
+
+Provide a comprehensive risk assessment. Return a precise numerical risk score between 0 and 100 on the first line. Output the justification on the subsequent lines.
+"""
+
+DIFFERENTIAL_DIAGNOSIS_PROMPT = """Generate a detailed differential diagnosis based on the provided symptoms and patient history.
+Symptoms/Query: {symptoms}
+History: {history}
+
+List the top 3-5 possible conditions in order of likelihood. For each condition, explain why it's suspected based on the symptoms and history provided.
+"""
+
+HALLUCINATION_CHECK_PROMPT = """Cross-check the generated medical report against the retrieved evidence text to identify any hallucinations or unsupported claims.
+Retrieved Evidence: {evidence}
+Generated Report: {report}
+
+Provide an analysis of any discrepancies. Return a hallucination score between 0.0 and 1.0 on the first line (where 0.0 means completely supported, 1.0 means completely fabricated). Provide explanation on subsequent lines.
+"""

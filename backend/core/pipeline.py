@@ -76,14 +76,14 @@ class CorePipeline:
         # 4. Run hallucination checker
         try:
             logger.info("Step 4: Hallucination Guardrails...")
-            hallucination_score, _ = detect_hallucination(diagnosis, evidence_text)
+            hallucination_score, _ = await detect_hallucination(diagnosis, evidence_text)
         except Exception as e:
             logger.error(f"Hallucination check failed: {e}")
 
         # 5. Run risk engine
         try:
             logger.info("Step 5: Risk Engine...")
-            risk_score, risk_level = calculate_risk({"history": "placeholder data"}, diagnosis)
+            risk_score, risk_level = await calculate_risk({"history": "placeholder data"}, diagnosis)
         except Exception as e:
             logger.error(f"Risk engine failed: {e}")
 
@@ -104,7 +104,7 @@ class CorePipeline:
         # 8. Generate differential diagnosis
         try:
             logger.info("Step 8: Differential Diagnosis...")
-            differential = generate_differential(evidence_text)
+            differential = await generate_differential(evidence_text)
         except Exception as e:
             logger.error(f"Differential diagnosis failed: {e}")
 
