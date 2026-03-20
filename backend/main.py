@@ -4,7 +4,8 @@ from contextlib import asynccontextmanager
 
 from backend.config import settings
 from backend.database.db import init_db
-from backend.api import rag_routes, patient_routes, upload_routes, chat_routes, system_routes
+from backend.api import rag_routes, patient_routes, upload_routes, chat_routes, system_routes, voice_routes, reminder_routes, auth_routes, vitals_routes
+from backend.reminders.scheduler import reminder_scheduler
 from backend.utils.logger import logger
 
 @asynccontextmanager
@@ -12,10 +13,12 @@ async def lifespan(app: FastAPI):
     # Startup actions
     logger.info("Initializing Extended MedRAG Backend Services...")
     await init_db()
+    reminder_scheduler.start()
     logger.info("Database initialized.")
     yield
     # Shutdown actions
     logger.info("Shutting down MedRAG Backend...")
+    reminder_scheduler.stop()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -35,10 +38,14 @@ app.add_middleware(
 
 # Include Routers
 app.include_router(rag_routes.router, prefix=settings.API_V1_STR)
+app.include_router(auth_routes.router, prefix=settings.API_V1_STR)
 app.include_router(patient_routes.router, prefix=settings.API_V1_STR)
 app.include_router(upload_routes.router, prefix=settings.API_V1_STR)
 app.include_router(chat_routes.router, prefix=settings.API_V1_STR)
 app.include_router(system_routes.router, prefix=settings.API_V1_STR)
+app.include_router(voice_routes.router, prefix=settings.API_V1_STR)
+app.include_router(reminder_routes.router, prefix=settings.API_V1_STR)
+app.include_router(vitals_routes.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():

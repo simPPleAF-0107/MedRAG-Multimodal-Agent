@@ -73,40 +73,41 @@ class CorePipeline:
         except Exception as e:
             logger.error(f"Reasoning agent failed: {e}")
 
-        # 4. Run hallucination checker
-        try:
-            logger.info("Step 4: Hallucination Guardrails...")
-            hallucination_score, _ = await detect_hallucination(diagnosis, evidence_text)
-        except Exception as e:
-            logger.error(f"Hallucination check failed: {e}")
+        # 4-8 Independent Plugin execution in Parallel
+        logger.info("Steps 4-8: Running Independent Plugin Guards Concurrenty...")
+        
+        async def run_hallucination():
+            try: return await detect_hallucination(diagnosis, evidence_text)
+            except Exception as e: logger.error(f"Hallucination check failed: {e}"); return 0.0, ""
+            
+        async def run_risk():
+            try: return await calculate_risk({"history": "placeholder data"}, diagnosis)
+            except Exception as e: logger.error(f"Risk engine failed: {e}"); return 0, "Unknown"
+            
+        async def run_temporal():
+            try: analyze_trends({"records": []})
+            except Exception as e: logger.error(f"Temporal analyzer failed: {e}")
+            
+        async def run_emergency():
+            try: return detect_emergency(text_query, diagnosis)
+            except Exception as e: logger.error(f"Emergency detection failed: {e}"); return False, ""
+            
+        async def run_differential():
+            try: return await generate_differential(evidence_text)
+            except Exception as e: logger.error(f"Differential diagnosis failed: {e}"); return []
 
-        # 5. Run risk engine
-        try:
-            logger.info("Step 5: Risk Engine...")
-            risk_score, risk_level = await calculate_risk({"history": "placeholder data"}, diagnosis)
-        except Exception as e:
-            logger.error(f"Risk engine failed: {e}")
-
-        # 6. Run temporal analyzer
-        try:
-            logger.info("Step 6: Temporal Analyzer...")
-            analyze_trends({"records": []}) # Evaluates longitudinal data silently
-        except Exception as e:
-            logger.error(f"Temporal analyzer failed: {e}")
-
-        # 7. Run emergency detector
-        try:
-            logger.info("Step 7: Emergency Detector...")
-            emergency_flag, _ = detect_emergency(text_query, diagnosis)
-        except Exception as e:
-            logger.error(f"Emergency detection failed: {e}")
-
-        # 8. Generate differential diagnosis
-        try:
-            logger.info("Step 8: Differential Diagnosis...")
-            differential = await generate_differential(evidence_text)
-        except Exception as e:
-            logger.error(f"Differential diagnosis failed: {e}")
+        hallucination_res, risk_res, _, emergency_res, differential_res = await asyncio.gather(
+            run_hallucination(),
+            run_risk(),
+            run_temporal(),
+            run_emergency(),
+            run_differential()
+        )
+        
+        if hallucination_res: hallucination_score, _ = hallucination_res
+        if risk_res: risk_score, risk_level = risk_res
+        if emergency_res: emergency_flag, _ = emergency_res
+        if differential_res: differential = differential_res
 
         # 9. Calculate confidence score
         try:

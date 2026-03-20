@@ -12,7 +12,7 @@ class OpenAIClient:
         self, 
         prompt: str, 
         system_prompt: str = "You are a highly capable AI medical assistant.", 
-        model: str = "gpt-4-turbo-preview",
+        model: str = "gpt-5.2-mini",
         temperature: float = 0.2,
         max_tokens: int = 1500
     ) -> str:
@@ -33,5 +33,19 @@ class OpenAIClient:
             return response.choices[0].message.content
         except Exception as e:
             raise Exception(f"OpenAI API error: {e}")
+            
+    async def generate_transcription(self, audio_file_path: str) -> str:
+        """
+        Transcribe an audio file using OpenAI's Whisper model.
+        """
+        try:
+            with open(audio_file_path, "rb") as audio_file:
+                response = await self.client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file
+                )
+                return response.text
+        except Exception as e:
+            raise Exception(f"OpenAI Audio error: {e}")
 
 openai_client = OpenAIClient()

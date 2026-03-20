@@ -10,6 +10,7 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(200), nullable=False)
+    role = Column(String(20), default="doctor", nullable=False) # Roles: doctor, patient, admin
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -20,6 +21,7 @@ class Patient(Base):
     __tablename__ = "patients"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_account_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=True) # Link to patient's auth account
     doctor_id = Column(Integer, ForeignKey("users.id"))
     first_name = Column(String(50), nullable=False)
     last_name = Column(String(50), nullable=False)
@@ -28,7 +30,8 @@ class Patient(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    doctor = relationship("User", back_populates="patients")
+    user_account = relationship("User", foreign_keys=[user_account_id])
+    doctor = relationship("User", foreign_keys=[doctor_id], back_populates="patients")
     reports = relationship("Report", back_populates="patient")
     mood_logs = relationship("MoodLog", back_populates="patient")
     activity_logs = relationship("ActivityLog", back_populates="patient")
@@ -88,3 +91,20 @@ class CycleLog(Base):
     recorded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     patient = relationship("Patient", back_populates="cycle_logs")
+
+class AIFeedback(Base):
+    """
+    Stores Human-in-the-Loop feedback from doctors to fine-tune the RAG model.
+    """
+    __tablename__ = "ai_feedback"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, ForeignKey("reports.id"), nullable=False)
+    doctor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_approved = Column(Boolean, nullable=False)
+    correction_notes = Column(Text, nullable=True) # If rejected, what was wrong?
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    report = relationship("Report")
+    doctor = relationship("User")

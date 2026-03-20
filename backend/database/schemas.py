@@ -78,6 +78,7 @@ class PatientBase(BaseModel):
     last_name: str
     date_of_birth: Optional[datetime] = None
     medical_history_summary: Optional[str] = None
+    user_account_id: Optional[int] = None
 
 class PatientCreate(PatientBase):
     pass
@@ -99,6 +100,7 @@ class PatientResponse(PatientBase):
 class UserBase(BaseModel):
     username: str
     email: str
+    role: str = "doctor"
 
 class UserCreate(UserBase):
     password: str
@@ -108,5 +110,23 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
 
+    class Config:
+        from_attributes = True
+
+# --- AI Feedback Schemas ---
+
+class AIFeedbackBase(BaseModel):
+    report_id: int
+    is_approved: bool
+    correction_notes: Optional[str] = None
+
+class AIFeedbackCreate(AIFeedbackBase):
+    pass
+
+class AIFeedbackResponse(AIFeedbackBase):
+    id: int
+    doctor_id: int
+    created_at: datetime
+    
     class Config:
         from_attributes = True

@@ -13,3 +13,8 @@ pytest-asyncio==0.23.5
 httpx==0.27.0
 loguru==0.7.2
 Pillow>=10.2.0
+rank_bm25==0.2.2
+fpdf2
+apscheduler
+PyJWT==2.8.0
+passlib[bcrypt]==1.7.4
