@@ -7,9 +7,9 @@ class RiskScoreWidget extends StatelessWidget {
   const RiskScoreWidget({super.key, required this.score, required this.level});
 
   Color _getColor() {
-    if (score < 40) return Colors.green;
-    if (score < 70) return Colors.orange;
-    return Colors.red;
+    if (score < 40) return const Color(0xFF10B981); // Success Green
+    if (score < 70) return const Color(0xFFF59E0B); // Warning Orange
+    return const Color(0xFFEF4444); // Error Red
   }
 
   @override
@@ -17,11 +17,22 @@ class RiskScoreWidget extends StatelessWidget {
     final color = _getColor();
     
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.05), color.withOpacity(0.15)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ]
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -32,18 +43,20 @@ class RiskScoreWidget extends StatelessWidget {
               Text(
                 'Clinical Risk Profile',
                 style: TextStyle(
-                  color: Colors.grey.shade700,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Text(
                 level.toUpperCase(),
                 style: TextStyle(
                   color: color,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                 ),
               ),
             ],

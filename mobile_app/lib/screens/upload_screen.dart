@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../providers/report_provider.dart';
 import '../widgets/upload_widget.dart';
+import '../utils/ux_utils.dart';
 
 // Note: To support actual image picking on real devices, we'd use image_picker.
 // For this scaffolding/prototype, we'll simulate the multimodal attachment.
@@ -19,14 +20,18 @@ class _UploadScreenState extends State<UploadScreen> {
   final _symptomController = TextEditingController();
   bool _isLoading = false;
   String _statusMessage = '';
+  String? _attachedTextFile;
+  String? _attachedImageFile;
 
   Future<void> _handleUpload() async {
+    FocusScope.of(context).unfocus(); // Unfocus keyboard
+    
     if (_symptomController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter clinical observations.')),
-      );
+      UxUtils.showToast(context, 'Please enter clinical observations.', isError: true);
       return;
     }
+
+    UxUtils.hapticMedium();
 
     setState(() {
       _isLoading = true;
@@ -44,18 +49,13 @@ class _UploadScreenState extends State<UploadScreen> {
           _statusMessage = 'Diagnosis Complete!';
         });
 
-        // Normally we'd use a tab controller to switch tabs automatically
-        ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(
-             content: Text('Pipeline Complete. Open the Reports Tab to view results.'),
-             backgroundColor: Colors.green,
-             duration: Duration(seconds: 4),
-           )
-        );
+        UxUtils.hapticMedium();
+        UxUtils.showToast(context, 'Pipeline Complete. Open the Reports Tab to view results.');
+        _symptomController.clear();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        UxUtils.showToast(context, 'Pipeline error: ${e.toString()}', isError: true);
       }
     } finally {
       if (mounted) {
@@ -71,47 +71,85 @@ class _UploadScreenState extends State<UploadScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Diagnostic Inference Engine')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'Trigger Multimodal RAG Pipeline',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
               'Provide clinical context and attach required visual evidence to initialize analysis.',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
             ),
             const SizedBox(height: 32),
 
             // Symptoms
-            const Text('Clinical Observations', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
+            Text('Clinical Observations', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
             TextField(
               controller: _symptomController,
               maxLines: 5,
               decoration: InputDecoration(
                 hintText: 'e.g. Patient presents with sharp abdominal pain...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
 
             // File Attachment Widgets
-            const Text('Multimodal Evidence', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
+            Text('Multimodal Evidence', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
             UploadWidget(
               onTextFileTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('File picker stub')));
+                UxUtils.hapticLight();
+                setState(() => _attachedTextFile = 'clinical_notes_log.txt');
+                UxUtils.showToast(context, 'clinical_notes_log.txt attached');
               },
               onImageTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image picker stub')));
+                UxUtils.hapticLight();
+                setState(() => _attachedImageFile = 'radiology_scan.jpg');
+                UxUtils.showToast(context, 'radiology_scan.jpg attached');
               },
             ),
+            
+            // Show attached files
+            if (_attachedTextFile != null || _attachedImageFile != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_attachedTextFile != null) Row(
+                      children: [
+                        const Icon(Icons.description, size: 16, color: Colors.blue),
+                        const SizedBox(width: 8),
+                        Text(_attachedTextFile!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ]
+                    ),
+                    if (_attachedImageFile != null) Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.image, size: 16, color: Colors.green),
+                          const SizedBox(width: 8),
+                          Text(_attachedImageFile!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ]
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            ],
 
             const SizedBox(height: 48),
 
@@ -119,21 +157,19 @@ class _UploadScreenState extends State<UploadScreen> {
             if (_isLoading)
               Column(
                 children: [
-                  const CircularProgressIndicator(),
+                  UxUtils.loadingSkeleton(height: 56, borderRadius: 12),
                   const SizedBox(height: 16),
-                  Text(_statusMessage, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(_statusMessage, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).primaryColor,
+                  )),
                 ],
               )
             else
               ElevatedButton.icon(
                 onPressed: _handleUpload,
-                icon: const Icon(Icons.psychology, color: Colors.white),
-                label: const Text('Execute Pipeline', style: TextStyle(color: Colors.white, fontSize: 16)),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.blue.shade700,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+                icon: const Icon(Icons.psychology_rounded, size: 24),
+                label: const Text('Execute Pipeline'),
               )
           ],
         ),

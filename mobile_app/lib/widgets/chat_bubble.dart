@@ -12,30 +12,29 @@ class ChatBubble extends StatelessWidget {
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
-          color: isUser ? Colors.blue.shade600 : Colors.white,
-          border: isUser ? null : Border.all(color: Colors.grey.shade300),
+          color: isUser ? Theme.of(context).primaryColor : Theme.of(context).cardTheme.color,
+          border: isUser ? null : Border.all(color: Colors.grey.shade200),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 0),
-            bottomRight: Radius.circular(isUser ? 0 : 16),
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: Radius.circular(isUser ? 20 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 20),
           ),
           boxShadow: [
-            if (!isUser) BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
+            BoxShadow(
+              color: Colors.black.withOpacity(isUser ? 0.1 : 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             )
           ]
         ),
         child: Text(
           text,
-          style: TextStyle(
-            color: isUser ? Colors.white : Colors.black87,
-            fontSize: 15,
-            height: 1.4,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: isUser ? Colors.white : Theme.of(context).colorScheme.onSurface,
+            height: 1.5,
           ),
         ),
       ),

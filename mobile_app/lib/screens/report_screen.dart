@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/report_provider.dart';
+import '../utils/ux_utils.dart';
 
 class ReportScreen extends StatelessWidget {
   const ReportScreen({super.key});
@@ -14,15 +15,10 @@ class ReportScreen extends StatelessWidget {
         if (report == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('Diagnostic Inference Report')),
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
-                  const SizedBox(height: 16),
-                  Text('No Active Report', style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
-                ],
-              ),
+            body: UxUtils.emptyState(
+              'No Active Report',
+              'Select a report from the Dashboard or run the Pipeline to view synthesis here.',
+              icon: Icons.search_off_rounded,
             ),
           );
         }
@@ -34,61 +30,73 @@ class ReportScreen extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(title: const Text('Diagnostic Inference Report')),
           body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Confidence Module
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: confidence > 70 ? Colors.green.shade50 : Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: confidence > 70 ? Colors.green.shade200 : Colors.orange.shade200),
+                    color: confidence > 70 ? const Color(0xFF10B981).withOpacity(0.05) : const Color(0xFFF59E0B).withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: confidence > 70 ? const Color(0xFF10B981).withOpacity(0.3) : const Color(0xFFF59E0B).withOpacity(0.3),
+                      width: 1.5
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Engine Confidence', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Engine Confidence', style: Theme.of(context).textTheme.titleMedium),
                       Text(
                         '${confidence.toStringAsFixed(1)}%',
                         style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: confidence > 70 ? Colors.green.shade700 : Colors.orange.shade700,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: confidence > 70 ? const Color(0xFF047857) : const Color(0xFFB45309),
                         ),
                       )
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
                 // Synthesis
-                const Text('Synthesized Clinical Evaluation', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
+                Text('Synthesized Clinical Evaluation', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4)
+                      )
+                    ]
+                  ),
+                  child: Text(finalReportText, style: Theme.of(context).textTheme.bodyLarge),
+                ),
+                const SizedBox(height: 32),
+
+                // Evidence Context
+                Text('Cited Evidence Sources', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(finalReportText, style: const TextStyle(fontSize: 15, height: 1.5)),
-                ),
-                const SizedBox(height: 24),
-
-                // Evidence Context
-                const Text('Cited Evidence Sources', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
                   ),
                   child: Text(
                     evidence, 
-                    style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.grey.shade800)
+                    style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: Colors.grey.shade700, height: 1.5)
                   ),
                 )
               ],

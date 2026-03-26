@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../providers/user_provider.dart';
 import '../services/api_service.dart';
+import '../utils/ux_utils.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,26 +14,39 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController(); // email or phone
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  String _selectedRole = 'patient'; // default
 
   Future<void> _handleLogin() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    if (_identifierController.text.isEmpty || _passwordController.text.isEmpty) {
+      UxUtils.showToast(context, 'Please enter credentials', isError: true);
+      return;
+    }
 
+    UxUtils.hapticLight();
     setState(() => _isLoading = true);
 
     try {
-      final res = await ApiService().login(_emailController.text, _passwordController.text);
+      final res = await ApiService().login(
+        identifier: _identifierController.text, 
+        password: _passwordController.text,
+        role: _selectedRole,
+      );
       if (mounted && res['status'] == 'success') {
-         context.read<UserProvider>().setUser(res['user_id'].toString(), res['email']);
+         UxUtils.hapticMedium();
+         context.read<UserProvider>().setUser(res['user_id'].toString(), res['email'], res['role']);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        UxUtils.showToast(context, 'Login Failed: \n${e.toString()}', isError: true);
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -39,59 +54,119 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-               Icon(Icons.monitor_heart, size: 80, color: Colors.blue.shade600),
-               const SizedBox(height: 24),
-               const Text(
-                 'MedRAG Mobile', 
-                 textAlign: TextAlign.center,
-                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)
-               ),
-               const SizedBox(height: 8),
+               const SizedBox(height: 20),
+               Icon(Icons.monitor_heart_rounded, size: 84, color: Theme.of(context).primaryColor),
+               const SizedBox(height: 32),
                Text(
-                 'Research-Grade Clinical UI', 
+                 'MedRAG', 
                  textAlign: TextAlign.center,
-                 style: TextStyle(fontSize: 16, color: Colors.grey.shade600)
+                 style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                   color: Theme.of(context).primaryColor,
+                 ),
                ),
-               const SizedBox(height: 48),
+               const SizedBox(height: 12),
+               Text(
+                 'Secure Clinical Portal', 
+                 textAlign: TextAlign.center,
+                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                   color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                 ),
+               ),
+               const SizedBox(height: 40),
+
+               // Role Toggle
+               Row(
+                 children: [
+                   Expanded(
+                     child: _buildRoleButton('patient', 'Patient', Icons.person_rounded),
+                   ),
+                   const SizedBox(width: 16),
+                   Expanded(
+                     child: _buildRoleButton('doctor', 'Doctor', Icons.medical_services_rounded),
+                   ),
+                 ],
+               ),
+               
+               const SizedBox(height: 32),
                TextField(
-                 controller: _emailController,
-                 decoration: InputDecoration(
-                   labelText: 'Email',
-                   prefixIcon: const Icon(Icons.email),
-                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                 controller: _identifierController,
+                 textInputAction: TextInputAction.next,
+                 decoration: const InputDecoration(
+                   labelText: 'Email or Phone Number',
+                   prefixIcon: Icon(Icons.perm_contact_calendar_rounded),
                  ),
                  keyboardType: TextInputType.emailAddress,
                ),
-               const SizedBox(height: 16),
+               const SizedBox(height: 20),
                TextField(
                  controller: _passwordController,
-                 decoration: InputDecoration(
+                 textInputAction: TextInputAction.done,
+                 onSubmitted: (_) => _handleLogin(),
+                 decoration: const InputDecoration(
                    labelText: 'Password',
-                   prefixIcon: const Icon(Icons.lock),
-                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                   prefixIcon: Icon(Icons.lock_outline_rounded),
                  ),
                  obscureText: true,
                ),
-               const SizedBox(height: 32),
-               ElevatedButton(
-                 onPressed: _isLoading ? null : _handleLogin,
-                 style: ElevatedButton.styleFrom(
-                   padding: const EdgeInsets.symmetric(vertical: 16),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                   backgroundColor: Colors.blue.shade600,
+               const SizedBox(height: 40),
+               SizedBox(
+                 height: 56,
+                 child: ElevatedButton(
+                   onPressed: _isLoading ? null : _handleLogin,
+                   child: _isLoading 
+                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                      : const Text('Sign In', style: TextStyle(fontSize: 18, letterSpacing: 0.5)),
                  ),
-                 child: _isLoading 
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Sign In', style: TextStyle(fontSize: 16, color: Colors.white)),
-               )
+               ),
+               const SizedBox(height: 24),
+               
+               if (_selectedRole == 'patient')
+                 TextButton(
+                   onPressed: () {
+                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                   },
+                   child: const Text('New Patient? Create an Account'),
+                 )
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleButton(String role, String label, IconData icon) {
+    bool isSelected = _selectedRole == role;
+    return InkWell(
+      onTap: () {
+        UxUtils.hapticLight();
+        setState(() => _selectedRole = role);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.transparent,
+          border: Border.all(
+            color: isSelected ? Theme.of(context).primaryColor : Colors.grey.withOpacity(0.3),
+            width: 2
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: isSelected ? Theme.of(context).primaryColor : Colors.grey),
+            const SizedBox(height: 8),
+            Text(label, style: TextStyle(
+              color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+              fontWeight: FontWeight.bold
+            )),
+          ],
         ),
       ),
     );

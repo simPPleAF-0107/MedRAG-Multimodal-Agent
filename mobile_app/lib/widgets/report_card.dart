@@ -11,20 +11,22 @@ class ReportCard extends StatelessWidget {
     String summary = report['final_report'] ?? report['diagnosis_reasoning'] ?? "Pending synthesis...";
     double confidence = (report['confidence_calibration']?['overall_confidence'] ?? 0).toDouble();
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade100, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Theme.of(context).cardTheme.shadowColor ?? Colors.black12,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             )
           ]
         ),
@@ -34,33 +36,32 @@ class ReportCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.description, color: Colors.blue, size: 20),
+                const Icon(Icons.description_rounded, color: Color(0xFF2563EB), size: 22),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: confidence > 70 ? Colors.green.shade50 : Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
+                    color: confidence > 70 ? const Color(0xFF10B981).withOpacity(0.1) : const Color(0xFFF59E0B).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '${confidence.toStringAsFixed(1)}% Confidence',
                     style: TextStyle(
-                      color: confidence > 70 ? Colors.green.shade700 : Colors.orange.shade700,
+                      color: confidence > 70 ? const Color(0xFF047857) : const Color(0xFFB45309),
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 )
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
               summary,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-                height: 1.4,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+                height: 1.5,
               ),
             ),
             const SizedBox(height: 12),
@@ -77,6 +78,7 @@ class ReportCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

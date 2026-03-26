@@ -15,54 +15,64 @@ class UploadWidget extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: InkWell(
-            onTap: onTextFileTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.description, color: Colors.blue.shade600, size: 32),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Upload Log',
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                ],
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTextFileTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2), width: 1.5),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.description_rounded, color: Theme.of(context).primaryColor, size: 36),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Upload Log',
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    )
+                  ],
+                ),
               ),
             ),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: InkWell(
-            onTap: onImageTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.purple.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.purple.shade200),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.image, color: Colors.purple.shade600, size: 32),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Attach Scan',
-                    style: TextStyle(
-                      color: Colors.purple.shade700,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                ],
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onImageTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Theme.of(context).colorScheme.secondary.withOpacity(0.2), width: 1.5),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.image_rounded, color: Theme.of(context).colorScheme.secondary, size: 36),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Attach Scan',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.secondary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    )
+                  ],
+                ),
               ),
             ),
           ),

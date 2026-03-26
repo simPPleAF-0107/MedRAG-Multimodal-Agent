@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../widgets/chat_bubble.dart';
+import '../utils/ux_utils.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -19,6 +20,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _controller.text;
     if (text.isEmpty) return;
 
+    UxUtils.hapticLight();
+
     setState(() {
       _messages.add({'role': 'user', 'content': text});
       _isLoading = true;
@@ -29,13 +32,19 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final response = await ApiService().chat(text, "1");
-      setState(() {
-        _messages.add({'role': 'assistant', 'content': response['reply']});
-      });
+      if (mounted) {
+        UxUtils.hapticMedium();
+        setState(() {
+          _messages.add({'role': 'assistant', 'content': response['reply']});
+        });
+      }
     } catch (e) {
-      setState(() {
-        _messages.add({'role': 'assistant', 'content': 'Memory Agent error. Assuming prototype loopback mismatch.'});
-      });
+      if (mounted) {
+        UxUtils.hapticError();
+        setState(() {
+          _messages.add({'role': 'assistant', 'content': 'Error connecting to Agent. Please try again later.'});
+        });
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -77,16 +86,23 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: UxUtils.loadingSkeleton(width: 80, height: 40, borderRadius: 20),
+              ),
             ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardTheme.color,
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2))
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05), 
+                  blurRadius: 16, 
+                  offset: const Offset(0, -4)
+                )
               ]
             ),
             child: Row(
@@ -94,21 +110,32 @@ class _ChatScreenState extends State<ChatScreen> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
+                    textInputAction: TextInputAction.send,
                     decoration: InputDecoration(
                       hintText: 'Ask MemoryAgent...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24), 
+                        borderSide: BorderSide(color: Colors.grey.shade200)
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24), 
+                        borderSide: BorderSide(color: Colors.grey.shade200)
+                      ),
                       filled: true,
-                      fillColor: Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      fillColor: Theme.of(context).scaffoldBackgroundColor,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: Colors.blue.shade600,
+                const SizedBox(width: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).primaryColor,
+                  ),
                   child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
                     onPressed: _sendMessage,
                   ),
                 )

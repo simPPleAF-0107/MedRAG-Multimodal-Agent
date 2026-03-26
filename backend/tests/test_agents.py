@@ -3,9 +3,10 @@ from backend.services.hallucination_checker import detect_hallucination
 from backend.services.emergency_detector import detect_emergency
 from backend.services.confidence_engine import calculate_confidence
 
-def test_hallucination_checker():
+@pytest.mark.asyncio
+async def test_hallucination_checker():
     """ Verify the logical bounds and functionality of hallucination checks. """
-    score, flags = detect_hallucination("Response unknown", "Context specifies clear conditions.")
+    score, flags = await detect_hallucination("Response unknown", "Context specifies clear conditions.")
     assert score > 0
     assert len(flags) > 0
 

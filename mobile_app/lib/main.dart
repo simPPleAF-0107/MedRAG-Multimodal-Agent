@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/report_provider.dart';
 
+import 'utils/theme.dart';
+import 'utils/ux_utils.dart';
+
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/upload_screen.dart';
@@ -28,22 +31,20 @@ class MedRAGApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MedRAG Mobile',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.grey.shade50,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: IconThemeData(color: Colors.black87),
-          titleTextStyle: TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold),
+    return GestureDetector(
+      onTap: () {
+        // Dismiss keyboard globally when tapping outside input fields
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      child: MaterialApp(
+        title: 'MedRAG Mobile',
+        theme: MedRagTheme.lightTheme,
+        debugShowCheckedModeBanner: false,
+        home: Consumer<UserProvider>(
+          builder: (context, user, _) {
+            return user.isAuthenticated ? const MainNavigation() : const LoginScreen();
+          }
         ),
-      ),
-      home: Consumer<UserProvider>(
-        builder: (context, user, _) {
-          return user.isAuthenticated ? const MainNavigation() : const LoginScreen();
-        }
       ),
     );
   }
@@ -74,19 +75,32 @@ class _MainNavigationState extends State<MainNavigation> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue.shade700,
-        unselectedItemColor: Colors.grey.shade500,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.upload_file), label: 'Upload'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.description), label: 'Reports'),
-          BottomNavigationBarItem(icon: Icon(Icons.query_stats), label: 'Trackers'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            )
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            if (_currentIndex != index) {
+              UxUtils.hapticLight();
+              setState(() => _currentIndex = index);
+            }
+          },
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
+            BottomNavigationBarItem(icon: Icon(Icons.psychology_rounded), label: 'RAG Engine'),
+            BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_rounded), label: 'Agent'),
+            BottomNavigationBarItem(icon: Icon(Icons.description_rounded), label: 'Reports'),
+            BottomNavigationBarItem(icon: Icon(Icons.query_stats_rounded), label: 'Trackers'),
+          ],
+        ),
       ),
     );
   }
