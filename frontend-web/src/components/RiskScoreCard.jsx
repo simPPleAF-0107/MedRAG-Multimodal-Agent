@@ -1,52 +1,58 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const RiskScoreCard = ({ score, level }) => {
     // Determine gradient and colors based on Risk Level
-    let bgGradient = "from-success/10 to-success/5";
-    let textColor = "text-success";
-    let ringColor = "ring-success/20";
+    let bgGradient = "from-emerald-500/20 to-emerald-500/5";
+    let textColor = "text-emerald-400";
+    let ringColor = "border-emerald-500/30";
+    let barColor = "bg-emerald-500";
     let Icon = CheckCircle2;
 
     if (level === "High") {
-        bgGradient = "from-danger/10 to-danger/5";
-        textColor = "text-danger";
-        ringColor = "ring-danger/20";
+        bgGradient = "from-red-500/20 to-red-500/5";
+        textColor = "text-red-400";
+        ringColor = "border-red-500/30";
+        barColor = "bg-red-500";
         Icon = AlertCircle;
     } else if (level === "Medium") {
-        bgGradient = "from-warning/10 to-warning/5";
-        textColor = "text-warning";
-        ringColor = "ring-warning/20";
+        bgGradient = "from-amber-500/20 to-amber-500/5";
+        textColor = "text-amber-400";
+        ringColor = "border-amber-500/30";
+        barColor = "bg-amber-500";
         Icon = AlertCircle;
     }
 
     return (
-        <div className={`bg-white rounded-xl border border-slate-200 shadow-sm p-5 relative overflow-hidden`}>
-            <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full bg-gradient-to-br ${bgGradient} blur-2xl opacity-50`}></div>
+        <div className="glass-panel rounded-xl border border-white/5 shadow-lg p-6 relative overflow-hidden group hover:border-white/10 transition-all duration-500 hover:-translate-y-1">
+            <div className={`absolute -right-8 -top-8 w-32 h-32 rounded-full bg-gradient-to-br ${bgGradient} blur-2xl opacity-70 group-hover:opacity-100 transition-opacity duration-500`}></div>
 
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-6 relative z-10">
                 <div>
-                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Patient Risk Score</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Calculated by MedRAG Engine</p>
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Patient Risk Score</h3>
+                    <p className="text-xs text-brand-500 mt-1 font-medium">Calculated by MedRAG Engine</p>
                 </div>
-                <div className={`p-2 rounded-lg bg-white ring-1 ring-inset ${ringColor}`}>
-                    <Icon className={`w-5 h-5 ${textColor}`} />
+                <div className={`p-2.5 rounded-xl bg-white/5 border shadow-inner ${ringColor} group-hover:scale-110 transition-transform`}>
+                    <Icon className={`w-6 h-6 ${textColor}`} />
                 </div>
             </div>
 
-            <div className="flex items-end space-x-2">
-                <span className={`text-4xl font-bold tracking-tight ${textColor}`}>{score}</span>
-                <span className="text-slate-500 font-medium mb-1">/ 100</span>
+            <div className="flex items-end space-x-2 relative z-10 mb-5">
+                <span className={`text-6xl font-black tracking-tighter drop-shadow-md ${textColor}`}>{score}</span>
+                <span className="text-slate-500 font-bold mb-1.5 text-xl">/ 100</span>
             </div>
 
-            <div className="mt-4">
-                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div
-                        className={`h-2 rounded-full ${textColor.replace('text-', 'bg-')}`}
-                        style={{ width: `${score}%` }}
-                    ></div>
+            <div className="mt-auto relative z-10">
+                <div className="w-full bg-white/5 rounded-full h-2.5 border border-white/10 overflow-hidden shadow-inner">
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${score}%` }}
+                        transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+                        className={`h-full rounded-full ${barColor} shadow-[0_0_10px_currentColor]`}
+                    />
                 </div>
-                <p className={`text-sm font-medium mt-2 ${textColor} flex items-center`}>
+                <p className={`text-sm font-bold mt-4 ${textColor} flex items-center bg-white/5 inline-flex px-3 py-1 rounded-md border ${ringColor}`}>
                     {level} Risk Profile
                 </p>
             </div>

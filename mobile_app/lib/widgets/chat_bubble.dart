@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../utils/theme.dart';
 
 class ChatBubble extends StatelessWidget {
   final String text;
@@ -11,33 +13,61 @@ class ChatBubble extends StatelessWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
         decoration: BoxDecoration(
-          color: isUser ? Theme.of(context).primaryColor : Theme.of(context).cardTheme.color,
-          border: isUser ? null : Border.all(color: Colors.grey.shade200),
+          color: isUser 
+              ? MedRagTheme.primaryCyan.withOpacity(0.9) 
+              : MedRagTheme.surfaceDark.withOpacity(0.5),
+          border: isUser 
+              ? Border.all(color: MedRagTheme.primaryCyan) 
+              : Border.all(color: Colors.white.withOpacity(0.1)),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(isUser ? 20 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 20),
+            topLeft: const Radius.circular(24),
+            topRight: const Radius.circular(24),
+            bottomLeft: Radius.circular(isUser ? 24 : 6),
+            bottomRight: Radius.circular(isUser ? 6 : 24),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isUser ? 0.1 : 0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            )
-          ]
+          boxShadow: isUser 
+              ? MedRagTheme.neonShadow 
+              : [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10)],
         ),
-        child: Text(
-          text,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: isUser ? Colors.white : Theme.of(context).colorScheme.onSurface,
-            height: 1.5,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (!isUser) ...[
+              Container(
+                margin: const EdgeInsets.only(right: 10),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: MedRagTheme.primaryCyan.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: MedRagTheme.primaryCyan.withOpacity(0.5)),
+                ),
+                child: const Icon(Icons.psychology_outlined, color: MedRagTheme.primaryCyan, size: 16),
+              ),
+            ],
+            Flexible(
+              child: Text(
+                text,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: isUser ? MedRagTheme.backgroundDark : MedRagTheme.textLight,
+                  fontWeight: isUser ? FontWeight.w600 : FontWeight.w400,
+                  height: 1.5,
+                ),
+              ),
+            ),
+            if (isUser) ...[
+              Container(
+                margin: const EdgeInsets.only(left: 10),
+                child: const Icon(Icons.person, color: MedRagTheme.backgroundDark, size: 16),
+              ),
+            ],
+          ],
         ),
-      ),
+      ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0, curve: Curves.easeOutBack),
     );
   }
 }

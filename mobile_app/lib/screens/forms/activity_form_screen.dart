@@ -37,7 +37,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
             const Text('Log Rehabilitation & Exercise', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 32),
             DropdownButtonFormField<String>(
-              value: _selectedActivity,
+              initialValue: _selectedActivity,
               decoration: const InputDecoration(labelText: 'Activity Type'),
               items: ['Walking', 'Running', 'Cycling', 'Swimming', 'Physical Therapy'].map((String value) {
                 return DropdownMenuItem<String>(value: value, child: Text(value));
@@ -46,7 +46,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
             ),
             const SizedBox(height: 24),
             DropdownButtonFormField<String>(
-              value: _intensityLevel,
+              initialValue: _intensityLevel,
               decoration: const InputDecoration(labelText: 'Intensity Level'),
               items: ['Low', 'Moderate', 'High', 'Maximum Effort'].map((String value) {
                 return DropdownMenuItem<String>(value: value, child: Text(value));

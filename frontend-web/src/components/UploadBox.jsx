@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UploadCloud, File, Image as ImageIcon, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const UploadBox = ({ onFileSelect }) => {
     const [dragActive, setDragActive] = useState(false);
@@ -45,14 +46,16 @@ const UploadBox = ({ onFileSelect }) => {
 
     return (
         <div
-            className={`relative w-full rounded-2xl border-2 border-dashed p-8 transition-colors text-center cursor-pointer 
-        ${dragActive ? 'border-brand-500 bg-brand-50' : 'border-slate-300 bg-white hover:bg-slate-50'}`}
+            className={`relative w-full rounded-2xl border-2 border-dashed p-10 transition-all duration-300 text-center cursor-pointer overflow-hidden
+        ${dragActive ? 'border-brand-500 bg-brand-500/10 shadow-[0_0_20px_rgba(69,243,255,0.2)]' : 'border-white/20 glass-panel hover:border-brand-500/50 hover:bg-white/5'}`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
             onClick={() => document.getElementById('file-upload').click()}
         >
+            {dragActive && <div className="absolute inset-0 bg-brand-500/5 blur-xl pointer-events-none"></div>}
+            
             <input
                 id="file-upload"
                 type="file"
@@ -63,38 +66,46 @@ const UploadBox = ({ onFileSelect }) => {
             />
 
             {!selectedFile ? (
-                <div className="flex flex-col items-center justify-center space-y-4">
-                    <div className="p-4 bg-brand-50 rounded-full text-brand-600">
-                        <UploadCloud size={32} />
-                    </div>
+                <div className="flex flex-col items-center justify-center space-y-5 relative z-10">
+                    <motion.div 
+                        animate={{ y: [0, -10, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        className="p-5 bg-gradient-to-br from-brand-600 to-brand-400 rounded-2xl text-deepSpace shadow-neon"
+                    >
+                        <UploadCloud size={40} />
+                    </motion.div>
                     <div>
-                        <p className="text-lg font-medium text-slate-700">Click to upload or drag and drop</p>
-                        <p className="text-sm text-slate-500 mt-1">Images (X-Ray, MRI) or Text Clinical Notes</p>
+                        <p className="text-xl font-bold text-white tracking-wide">Click to upload or drag and drop</p>
+                        <p className="text-sm text-slate-400 mt-2 font-medium">Images (X-Ray, MRI) or Text Clinical Notes <br/> <span className="text-xs text-brand-500 opacity-80">(Max 50MB)</span></p>
                     </div>
                 </div>
             ) : (
-                <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                        {selectedFile.type.includes('image') ? (
-                            <ImageIcon className="text-brand-500 w-8 h-8" />
-                        ) : (
-                            <File className="text-brand-500 w-8 h-8" />
-                        )}
+                <div className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-xl hover:border-brand-500/30 transition-colors relative z-10 backdrop-blur-md shadow-lg">
+                    <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-brand-500/20 rounded-lg border border-brand-500/30">
+                            {selectedFile.type.includes('image') ? (
+                                <ImageIcon className="text-brand-400 w-8 h-8" />
+                            ) : (
+                                <File className="text-brand-400 w-8 h-8" />
+                            )}
+                        </div>
                         <div className="text-left">
-                            <p className="font-medium text-slate-800 text-sm truncate max-w-[200px]">
+                            <p className="font-bold text-white text-base truncate max-w-[200px] sm:max-w-xs">
                                 {selectedFile.name}
                             </p>
-                            <p className="text-xs text-slate-500">
-                                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                            <p className="text-xs text-slate-400 font-medium">
+                                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • {selectedFile.type || "Unknown File Type"}
                             </p>
                         </div>
                     </div>
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.1, rotate: 90 }}
+                        whileTap={{ scale: 0.9 }}
                         onClick={clearFile}
-                        className="p-1.5 text-slate-400 hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
+                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors border border-transparent hover:border-red-500/30"
                     >
-                        <X size={18} />
-                    </button>
+                        <X size={20} />
+                    </motion.button>
                 </div>
             )}
         </div>

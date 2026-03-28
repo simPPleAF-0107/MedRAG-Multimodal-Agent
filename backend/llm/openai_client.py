@@ -14,12 +14,21 @@ class OpenAIClient:
         system_prompt: str = "You are a highly capable AI medical assistant.", 
         model: str = "gpt-4o-mini",
         temperature: float = 0.2,
-        max_tokens: int = 1500
+        max_tokens: int = 1500,
+        use_cache: bool = True
     ) -> str:
         """
         Generate a text completion using OpenAI's API.
         Can be used for reasoning or definitive report generation.
+        Checks Semantic Cache first to save API costs.
         """
+        if use_cache:
+            from backend.llm.semantic_cache import semantic_cache
+            cached = await semantic_cache.get_cached_response(prompt, system_prompt)
+            if cached:
+                print("LLM Cache hit! Returning instant response.")
+                return cached
+                
         try:
             response = await self.client.chat.completions.create(
                 model=model,
@@ -30,7 +39,13 @@ class OpenAIClient:
                 temperature=temperature,
                 max_tokens=max_tokens
             )
-            return response.choices[0].message.content
+            response_text = response.choices[0].message.content
+            
+            if use_cache:
+                from backend.llm.semantic_cache import semantic_cache
+                await semantic_cache.set_cached_response(prompt, system_prompt, response_text)
+                
+            return response_text
         except Exception as e:
             raise Exception(f"OpenAI API error: {e}")
             

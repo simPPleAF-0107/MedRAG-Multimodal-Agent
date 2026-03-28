@@ -73,7 +73,7 @@ class _MoodFormScreenState extends State<MoodFormScreen> {
             ),
             const SizedBox(height: 32),
             DropdownButtonFormField<String>(
-              value: _energyLevel,
+              initialValue: _energyLevel,
               decoration: const InputDecoration(labelText: 'Energy Level'),
               items: ['Low', 'Medium', 'High', 'Hyperactive'].map((String value) {
                 return DropdownMenuItem<String>(value: value, child: Text(value));

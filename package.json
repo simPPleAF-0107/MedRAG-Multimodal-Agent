@@ -1,11 +1,14 @@
 {
   "dependencies": {
     "axios": "^1.13.5",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
     "lucide-react": "^0.575.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.0",
-    "recharts": "^3.7.0"
+    "recharts": "^3.7.0",
+    "tailwind-merge": "^3.5.0"
   },
   "name": "prototype",
   "version": "1.0.0",
@@ -14,7 +17,9 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite frontend-web",
+    "build": "vite build frontend-web",
+    "preview": "vite preview frontend-web"
   },
   "keywords": [],
   "author": "",

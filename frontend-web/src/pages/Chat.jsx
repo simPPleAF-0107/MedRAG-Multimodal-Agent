@@ -27,13 +27,15 @@ const Chat = () => {
     };
 
     return (
-        <div className="h-[calc(100vh-8rem)] animate-fade-in flex flex-col max-w-4xl mx-auto">
-            <div className="mb-6 shrink-0">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Conversational AI Probe</h1>
-                <p className="text-slate-500 mt-1">Directly query the MemoryAgent regarding Patient History or Medical Vector Graph.</p>
+        <div className="h-[calc(100vh-8rem)] animate-slide-up-fade flex flex-col max-w-4xl mx-auto relative z-10">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 rounded-full blur-[100px] animate-pulse-glow pointer-events-none"></div>
+            
+            <div className="mb-8 shrink-0 relative z-20 text-center">
+                <h1 className="text-4xl font-extrabold text-white tracking-widest text-glow mb-2">Neurological NLP Core</h1>
+                <p className="text-brand-100/70 font-medium">Securely query the MemoryAgent Vector Graph</p>
             </div>
 
-            <div className="flex-1 overflow-hidden shadow-lg border-slate-200/60 border rounded-2xl ring-1 ring-slate-900/5">
+            <div className="flex-1 overflow-hidden glass-panel-heavy p-1 shadow-neon mb-4">
                 <ChatBox
                     messages={messages}
                     isLoading={isTyping}

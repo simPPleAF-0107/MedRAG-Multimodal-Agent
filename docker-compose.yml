@@ -18,6 +18,13 @@ services:
       - ./data:/app/data
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: medrag_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
   frontend-web:
     build:
       context: ./frontend-web

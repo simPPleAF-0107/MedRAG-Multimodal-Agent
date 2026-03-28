@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../services/api_service.dart';
 import '../widgets/chat_bubble.dart';
 import '../utils/ux_utils.dart';
+import '../utils/theme.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -46,10 +49,12 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
-      _scrollToBottom();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
     }
   }
 
@@ -68,81 +73,186 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Conversational AI Probe')),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                return ChatBubble(
-                  text: msg['content']!,
-                  isUser: msg['role'] == 'user',
-                );
-              },
-            ),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.auto_awesome, color: MedRagTheme.primaryCyan, size: 24)
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .scaleXY(end: 1.1, duration: 1.seconds),
+            const SizedBox(width: 8),
+            const Text('Clinical Agent'),
+          ],
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: MedRagTheme.backgroundDark.withOpacity(0.6)),
           ),
-          if (_isLoading)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: UxUtils.loadingSkeleton(width: 80, height: 40, borderRadius: 20),
-              ),
-            ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05), 
-                  blurRadius: 16, 
-                  offset: const Offset(0, -4)
-                )
-              ]
-            ),
-            child: Row(
+        ),
+      ),
+      body: Stack(
+        children: [
+          // Ambient Glow Backgrounds
+          Positioned(
+            top: 100,
+            left: -50,
+            child: Container(
+              width: 200, height: 200,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: MedRagTheme.primaryCyan.withOpacity(0.1)),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true)).moveX(end: 50, duration: 4.seconds),
+          ),
+          Positioned(
+            bottom: 100,
+            right: -50,
+            child: Container(
+              width: 250, height: 250,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: MedRagTheme.secondaryCoral.withOpacity(0.05)),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true)).moveY(end: 50, duration: 3.seconds),
+          ),
+          
+          SafeArea(
+            bottom: false,
+            child: Column(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    textInputAction: TextInputAction.send,
-                    decoration: InputDecoration(
-                      hintText: 'Ask MemoryAgent...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24), 
-                        borderSide: BorderSide(color: Colors.grey.shade200)
+                  child: _messages.isEmpty 
+                    ? _buildEmptyState() 
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.only(top: 16, bottom: 24, left: 12, right: 12),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final msg = _messages[index];
+                          return ChatBubble(
+                            text: msg['content']!,
+                            isUser: msg['role'] == 'user',
+                          );
+                        },
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24), 
-                        borderSide: BorderSide(color: Colors.grey.shade200)
-                      ),
-                      filled: true,
-                      fillColor: Theme.of(context).scaffoldBackgroundColor,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
                 ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Theme.of(context).primaryColor,
+                if (_isLoading)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 20.0, bottom: 10),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.psychology, color: MedRagTheme.primaryCyan, size: 20),
+                          const SizedBox(width: 8),
+                          const Text(
+                            "MedRAG is thinking...", 
+                            style: TextStyle(color: MedRagTheme.primaryCyan, fontStyle: FontStyle.italic)
+                          ).animate(onPlay: (controller) => controller.repeat()).shimmer(duration: 1.5.seconds, color: Colors.white),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send_rounded, color: Colors.white),
-                    onPressed: _sendMessage,
-                  ),
-                )
+                _buildInputArea(context),
               ],
             ),
-          )
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: MedRagTheme.primaryCyan.withOpacity(0.1),
+              shape: BoxShape.circle,
+              boxShadow: MedRagTheme.neonShadow,
+              border: Border.all(color: MedRagTheme.primaryCyan.withOpacity(0.3)),
+            ),
+            child: const Icon(Icons.psychology, size: 60, color: MedRagTheme.primaryCyan)
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .scaleXY(end: 1.05, duration: 1.5.seconds),
+          ),
+          const SizedBox(height: 24),
+          Text("How can I assist you today?", 
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)
+          ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, end: 0),
+          const SizedBox(height: 8),
+          Text(
+            "Ask questions about patient history or diagnoses.",
+            style: TextStyle(color: MedRagTheme.textMuted, fontSize: 14),
+            textAlign: TextAlign.center,
+          ).animate().fadeIn(delay: 500.ms),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputArea(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 16, 
+        right: 16, 
+        top: 16, 
+        // add extra padding for floating nav bar at the bottom:
+        bottom: MediaQuery.of(context).padding.bottom + 90,
+      ),
+      decoration: BoxDecoration(
+        color: MedRagTheme.backgroundDark.withOpacity(0.8),
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  textInputAction: TextInputAction.send,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Message memory agent...',
+                    hintStyle: TextStyle(color: MedRagTheme.textMuted.withOpacity(0.6)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: const BorderSide(color: MedRagTheme.primaryCyan),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  ),
+                  onSubmitted: (_) => _sendMessage(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: _sendMessage,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: MedRagTheme.primaryCyan,
+                    boxShadow: MedRagTheme.neonShadow,
+                  ),
+                  child: const Icon(Icons.send_rounded, color: MedRagTheme.backgroundDark, size: 20),
+                ),
+              ).animate(target: _controller.text.isNotEmpty ? 1 : 0).scaleXY(end: 1.1, duration: 200.ms)
+            ],
+          ),
+        ),
       ),
     );
   }

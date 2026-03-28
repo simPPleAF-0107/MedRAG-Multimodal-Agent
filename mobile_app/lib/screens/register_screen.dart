@@ -1,9 +1,12 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../providers/user_provider.dart';
 import '../services/api_service.dart';
+import '../utils/theme.dart';
 import '../utils/ux_utils.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -17,7 +20,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   int _currentStep = 0;
   bool _isLoading = false;
 
-  // Step 1: Personal
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -26,14 +28,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   DateTime? _dob;
   String? _gender;
 
-  // Step 2: Vitals & Lifestyle
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
   String? _smokingStatus;
   String? _drinkingStatus;
   final _lifestyleController = TextEditingController();
 
-  // Step 3: Medical History
   final _conditionsController = TextEditingController();
   final _surgeriesController = TextEditingController();
   final _familyHistoryController = TextEditingController();
@@ -61,14 +61,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _generatePatientId(String firstName, String lastName) {
     String firstInitial = firstName.isNotEmpty ? firstName[0].toUpperCase() : 'X';
     String lastInitial = lastName.isNotEmpty ? lastName[0].toUpperCase() : 'X';
-    String randomDigits = (Random().nextInt(900000) + 100000).toString(); // 6 digits
+    String randomDigits = (Random().nextInt(900000) + 100000).toString();
     return '$firstInitial$lastInitial$randomDigits';
   }
 
   Future<void> _handleRegister() async {
     FocusScope.of(context).unfocus();
     
-    // Minimum validation
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty || _firstNameController.text.isEmpty || _lastNameController.text.isEmpty) {
       UxUtils.showToast(context, 'Please fill at least your Name, Email, and Password.', isError: true);
       return;
@@ -106,15 +105,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       
       if (mounted && res['status'] == 'success') {
          UxUtils.hapticMedium();
-         UxUtils.showToast(context, 'Registration Successful! Logging in as $patientId...');
-         
-         // Auto-login the new user
+         UxUtils.showToast(context, 'Registration Successful! Logging in...');
          context.read<UserProvider>().setUser(res['user_id'].toString(), res['email'], res['role']);
          Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (mounted) {
-        UxUtils.showToast(context, 'Registration Failed: \n${e.toString()}', isError: true);
+        UxUtils.showToast(context, 'Registration Failed: \n$e', isError: true);
       }
     } finally {
       if (mounted) {
@@ -138,7 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   List<Step> _getSteps() {
     return [
       Step(
-        title: const Text('Personal Details'),
+        title: Text('Personal Details', style: TextStyle(color: _currentStep >= 0 ? MedRagTheme.primaryCyan : Colors.white)),
         subtitle: const Text('Basic Identification'),
         isActive: _currentStep >= 0,
         state: _currentStep > 0 ? StepState.complete : StepState.indexed,
@@ -162,25 +159,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onTap: () => _selectDate(context),
               child: InputDecorator(
                 decoration: const InputDecoration(labelText: 'Date of Birth', prefixIcon: Icon(Icons.cake_outlined)),
-                child: Text(_dob == null ? 'Select Date' : '${_dob!.toLocal()}'.split(' ')[0]),
+                child: Text(_dob == null ? 'Select Date' : '${_dob!.toLocal()}'.split(' ')[0], style: const TextStyle(color: Colors.white)),
               ),
             ),
             if (_dob != null) Padding(
               padding: const EdgeInsets.only(top: 8.0, left: 12),
-              child: Align(alignment: Alignment.centerLeft, child: Text('Calculated Age: ${_calculateAge(_dob!)} years', style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold))),
+              child: Align(alignment: Alignment.centerLeft, child: Text('Calculated Age: ${_calculateAge(_dob!)} years', style: const TextStyle(color: MedRagTheme.primaryCyan, fontWeight: FontWeight.bold))),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _gender,
+              dropdownColor: MedRagTheme.surfaceDark,
+              initialValue: _gender,
               decoration: const InputDecoration(labelText: 'Sex / Gender', prefixIcon: Icon(Icons.transgender_outlined)),
-              items: ['Male', 'Female', 'Non-Binary', 'Other', 'Prefer Not to Say'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+              items: ['Male', 'Female', 'Non-Binary', 'Other', 'Prefer Not to Say'].map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(color: Colors.white)))).toList(),
               onChanged: (val) => setState(() => _gender = val),
             ),
-          ],
+          ].animate(interval: 50.ms).fadeIn().slideY(begin: 0.1, end: 0),
         ),
       ),
       Step(
-        title: const Text('Vitals & Lifestyle'),
+        title: Text('Vitals & Lifestyle', style: TextStyle(color: _currentStep >= 1 ? MedRagTheme.primaryCyan : Colors.white)),
         subtitle: const Text('Physical metrics & habits'),
         isActive: _currentStep >= 1,
         state: _currentStep > 1 ? StepState.complete : StepState.indexed,
@@ -195,26 +193,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _smokingStatus,
+              dropdownColor: MedRagTheme.surfaceDark,
+              initialValue: _smokingStatus,
               decoration: const InputDecoration(labelText: 'Smoking Status'),
-              items: ['Never Smoked', 'Former Smoker', 'Current Smoker', 'Occasional'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+              items: ['Never Smoked', 'Former Smoker', 'Current Smoker', 'Occasional'].map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(color: Colors.white)))).toList(),
               onChanged: (val) => setState(() => _smokingStatus = val),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _drinkingStatus,
+              dropdownColor: MedRagTheme.surfaceDark,
+              initialValue: _drinkingStatus,
               decoration: const InputDecoration(labelText: 'Alcohol Consumption'),
-              items: ['Non-Drinker', 'Occasional', 'Regular', 'Heavy'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+              items: ['Non-Drinker', 'Occasional', 'Regular', 'Heavy'].map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(color: Colors.white)))).toList(),
               onChanged: (val) => setState(() => _drinkingStatus = val),
             ),
             const SizedBox(height: 16),
-            TextField(controller: _lifestyleController, maxLines: 2, decoration: const InputDecoration(labelText: 'Other Lifestyle Activities (e.g. daily exercise)', alignLabelWithHint: true)),
-          ],
+            TextField(controller: _lifestyleController, maxLines: 2, decoration: const InputDecoration(labelText: 'Lifestyle Activities', alignLabelWithHint: true)),
+          ].animate(interval: 50.ms).fadeIn().slideY(begin: 0.1, end: 0),
         ),
       ),
       Step(
-        title: const Text('Medical History'),
-        subtitle: const Text('Past conditions & physicians'),
+        title: Text('Medical History', style: TextStyle(color: _currentStep >= 2 ? MedRagTheme.primaryCyan : Colors.white)),
+        subtitle: const Text('Conditions & physicians'),
         isActive: _currentStep >= 2,
         content: Column(
           children: [
@@ -229,7 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             TextField(controller: _medicationsController, maxLines: 2, decoration: const InputDecoration(labelText: 'Current Medications', alignLabelWithHint: true)),
             const SizedBox(height: 16),
             TextField(controller: _physicianController, decoration: const InputDecoration(labelText: 'Attending Physician\'s Name', prefixIcon: Icon(Icons.medical_services_outlined))),
-          ],
+          ].animate(interval: 50.ms).fadeIn().slideY(begin: 0.1, end: 0),
         ),
       ),
     ];
@@ -238,64 +238,107 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('New Patient Registration'),
+        title: const Text('Patient Onboarding'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
-      body: SafeArea(
-        child: _isLoading 
-        ? Center(child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 24),
-              Text('Generating Secure Patient Profile...', style: Theme.of(context).textTheme.titleMedium),
-            ],
-          ))
-        : Stepper(
-            type: StepperType.vertical,
-            currentStep: _currentStep,
-            physics: const ClampingScrollPhysics(),
-            onStepContinue: () {
-              if (_currentStep < _getSteps().length - 1) {
-                setState(() => _currentStep += 1);
-              } else {
-                _handleRegister();
-              }
-            },
-            onStepCancel: () {
-              if (_currentStep > 0) {
-                setState(() => _currentStep -= 1);
-              } else {
-                Navigator.of(context).pop();
-              }
-            },
-            controlsBuilder: (context, details) {
-              final isLastStep = _currentStep == _getSteps().length - 1;
-              return Padding(
-                padding: const EdgeInsets.only(top: 24.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: details.onStepContinue,
-                        child: Text(isLastStep ? 'Complete Registration' : 'Next'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 1,
-                      child: OutlinedButton(
-                        onPressed: details.onStepCancel,
-                        child: Text(_currentStep == 0 ? 'Cancel' : 'Back'),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-            steps: _getSteps(),
+      body: Stack(
+        children: [
+          Positioned(
+            top: -50,
+            right: -100,
+            child: Container(
+              width: 300, height: 300,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: MedRagTheme.primaryCyan.withOpacity(0.1)),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true)).moveX(end: -50, duration: 4.seconds),
           ),
+          
+          SafeArea(
+            child: _isLoading 
+            ? Center(child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Hero(
+                    tag: 'app_logo',
+                    child: Icon(Icons.monitor_heart_rounded, size: 84, color: Theme.of(context).primaryColor)
+                      .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                      .scaleXY(end: 1.1, duration: 1.seconds),
+                  ),
+                  const SizedBox(height: 32),
+                  const CircularProgressIndicator(color: MedRagTheme.primaryCyan),
+                  const SizedBox(height: 24),
+                  Text('Generating Secure Patient Profile...', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))
+                    .animate().fadeIn().shimmer(duration: 2.seconds, color: Colors.white),
+                ],
+              ))
+            : Column(
+                children: [
+                   Hero(
+                     tag: 'app_logo',
+                     child: Icon(Icons.monitor_heart_rounded, size: 48, color: Theme.of(context).primaryColor),
+                   ),
+                   const SizedBox(height: 16),
+                   Expanded(
+                     child: Theme(
+                       data: Theme.of(context).copyWith(
+                         canvasColor: Colors.transparent,
+                         colorScheme: Theme.of(context).colorScheme.copyWith(
+                           primary: MedRagTheme.primaryCyan,
+                         )
+                       ),
+                       child: Stepper(
+                         type: StepperType.vertical,
+                         currentStep: _currentStep,
+                         physics: const BouncingScrollPhysics(),
+                         onStepContinue: () {
+                           if (_currentStep < _getSteps().length - 1) {
+                             setState(() => _currentStep += 1);
+                           } else {
+                             _handleRegister();
+                           }
+                         },
+                         onStepCancel: () {
+                           if (_currentStep > 0) {
+                             setState(() => _currentStep -= 1);
+                           } else {
+                             Navigator.of(context).pop();
+                           }
+                         },
+                         controlsBuilder: (context, details) {
+                           final isLastStep = _currentStep == _getSteps().length - 1;
+                           return Padding(
+                             padding: const EdgeInsets.only(top: 24.0),
+                             child: Row(
+                               children: [
+                                 Expanded(
+                                   flex: 2,
+                                   child: ElevatedButton(
+                                     onPressed: details.onStepContinue,
+                                     child: Text(isLastStep ? 'Complete Registration' : 'Continue', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                   ),
+                                 ),
+                                 const SizedBox(width: 12),
+                                 Expanded(
+                                   flex: 1,
+                                   child: OutlinedButton(
+                                     onPressed: details.onStepCancel,
+                                     child: Text(_currentStep == 0 ? 'Cancel' : 'Back'),
+                                   ),
+                                 ),
+                               ],
+                             ),
+                           );
+                         },
+                         steps: _getSteps(),
+                       ),
+                     ),
+                   ),
+                ],
+              ),
+          ),
+        ],
       ),
     );
   }

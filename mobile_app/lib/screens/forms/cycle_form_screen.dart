@@ -63,7 +63,7 @@ class _CycleFormScreenState extends State<CycleFormScreen> {
             ),
             const SizedBox(height: 24),
             DropdownButtonFormField<String>(
-              value: _flowIntensity,
+              initialValue: _flowIntensity,
               decoration: const InputDecoration(labelText: 'Flow Intensity'),
               items: ['Spotting', 'Light', 'Medium', 'Heavy', 'Abnormal'].map((String value) {
                 return DropdownMenuItem<String>(value: value, child: Text(value));

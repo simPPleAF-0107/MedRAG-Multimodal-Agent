@@ -12,6 +12,29 @@ class MedRagTheme {
   static const Color errorRed = Color(0xFFFF4C4C);
   static const Color successGreen = Color(0xFF00FF9D);
 
+  // Reusable Glassmorphism & Neon Effects (matching web CSS)
+  static final BoxDecoration glassDecoration = BoxDecoration(
+    color: Colors.white.withOpacity(0.05),
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.2),
+        blurRadius: 10,
+        spreadRadius: 2,
+      ),
+    ],
+  );
+
+  static final List<BoxShadow> neonShadow = [
+    BoxShadow(
+      color: primaryCyan.withOpacity(0.3),
+      blurRadius: 15,
+      spreadRadius: 2,
+      offset: const Offset(0, 0),
+    ),
+  ];
+
   static ThemeData get lightTheme {
     // We are forcing a dark vibrant theme even if called lightTheme for now,
     // or we just return a dark theme configuration to replace everything globally.
@@ -41,24 +64,23 @@ class MedRagTheme {
         bodySmall: GoogleFonts.outfit(color: textMuted, fontSize: 12),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: backgroundDark,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: primaryCyan),
         titleTextStyle: GoogleFonts.outfit(
-          color: primaryCyan,
+          color: textLight,
           fontSize: 22,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.5,
         ),
       ),
       cardTheme: CardThemeData(
-        color: surfaceDark,
-        elevation: 12,
-        shadowColor: primaryCyan.withOpacity(0.1),
+        color: surfaceDark.withOpacity(0.5),
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: primaryCyan.withOpacity(0.1), width: 1),
+          side: BorderSide(color: Colors.white.withOpacity(0.05), width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -94,21 +116,21 @@ class MedRagTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surfaceDark.withOpacity(0.5),
+        fillColor: Colors.white.withOpacity(0.05),
         contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         hintStyle: GoogleFonts.outfit(color: textMuted, fontSize: 16),
         labelStyle: GoogleFonts.outfit(color: primaryCyan.withOpacity(0.8), fontSize: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: textMuted.withOpacity(0.3)),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: textMuted.withOpacity(0.3)),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: primaryCyan, width: 2),
+          borderSide: const BorderSide(color: primaryCyan, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -120,8 +142,8 @@ class MedRagTheme {
         ),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: backgroundDark,
-        elevation: 20,
+        backgroundColor: backgroundDark.withOpacity(0.9),
+        elevation: 0,
         selectedItemColor: primaryCyan,
         unselectedItemColor: textMuted,
         showUnselectedLabels: true,

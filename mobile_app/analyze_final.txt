@@ -1,0 +1,9 @@
+﻿
+   info - Don't invoke 'print' in production code - lib\providers\report_provider.dart:20:7 - avoid_print
+  error - The argument type 'List<DropdownMenuItem<dynamic>>' can't be assigned to the parameter type 'List<DropdownMenuItem<String>>?'.  - lib\screens\register_screen.dart:176:22 - argument_type_not_assignable
+  error - The named parameter 'initialValue' isn't defined - lib\screens\register_screen.dart:176:113 - undefined_named_parameter
+  error - The argument type 'List<DropdownMenuItem<dynamic>>' can't be assigned to the parameter type 'List<DropdownMenuItem<String>>?'.  - lib\screens\register_screen.dart:200:22 - argument_type_not_assignable
+  error - The named parameter 'initialValue' isn't defined - lib\screens\register_screen.dart:200:116 - undefined_named_parameter
+  error - The argument type 'List<DropdownMenuItem<dynamic>>' can't be assigned to the parameter type 'List<DropdownMenuItem<String>>?'.  - lib\screens\register_screen.dart:207:22 - argument_type_not_assignable
+  error - The named parameter 'initialValue' isn't defined - lib\screens\register_screen.dart:207:100 - undefined_named_parameter
+

@@ -9,13 +9,19 @@ class TextRetriever:
     fusing the results via Reciprocal Rank Fusion (RRF) for Hybrid search.
     """
     
-    async def retrieve(self, query: str, top_k: int = 10) -> list[dict]:
+    async def retrieve(self, query: str, top_k: int = 10, use_hyde: bool = True) -> list[dict]:
         """
         Embeds the query and fetches the top_k most similar documents.
         """
+        search_query = query
+        if use_hyde:
+            from backend.rag.text.hyde_generator import hyde_generator
+            print("Generating HyDE document...")
+            search_query = await hyde_generator.generate_hypothetical_document(query)
+            
         # Dense retrieval
         async def get_dense():
-            query_embedding = await text_embedder.embed_text(query)
+            query_embedding = await text_embedder.embed_text(search_query)
             results = await vector_store.query_text(
                 query_embedding=query_embedding,
                 n_results=top_k
