@@ -32,142 +32,31 @@ class CorePipeline:
     """
 
     async def run_multimodal_rag_pipeline(self, text_query: str, image=None, patient_graph=None) -> dict:
-        logger.info(f"== MEDRAG PIPELINE INITIATED == Query: {text_query[:50]}...")
+        logger.info(f"== MEDRAG LANGGRAPH PIPELINE INITIATED == Query: {text_query[:50]}...")
+        from backend.core.agent_workflow import medrag_agent
 
-        # Safe Defaults
-        evidence_text = ""
-        evidence_image = ""
-        heatmap_path = ""
-        diagnosis = "Unable to generate diagnosis."
-        hallucination_score = 0.0
-        risk_score = 0
-        risk_level = "Unknown"
-        emergency_flag = False
-        differential = []
-        confidence = 0.0
-        recommendations = {}
-
-        # 1 & 2. Retrieve text and image evidence
-        try:
-            logger.info("Step 1 & 2: Retrieving Evidence...")
-            retrieval_result = await performance_logger.async_profile("retriever_agent", retriever_agent.run, {
-                "text_query": text_query,
-                "image": image
-            })
-            evidence_text = retrieval_result.get("text_context", "")
-            evidence_image = retrieval_result.get("image_context", "")
-
-            if image:
-                heatmap_path = generate_heatmap(image)
-        except Exception as e:
-            logger.error(f"Evidence retrieval failed: {e}")
-
-        # 3. Run reasoning agent
-        try:
-            logger.info("Step 3: Reasoning Agent...")
-            reasoning_result = await performance_logger.async_profile("reasoning_agent", reasoning_agent.run, {
-                "text_query": text_query,
-                "text_context": evidence_text,
-                "image_context": evidence_image
-            })
-            diagnosis = reasoning_result.get("diagnosis_reasoning", diagnosis)
-        except Exception as e:
-            logger.error(f"Reasoning agent failed: {e}")
-
-        # 4-8 Independent Plugin execution in Parallel
-        logger.info("Steps 4-8: Running Independent Plugin Guards Concurrenty...")
-        
-        async def run_hallucination():
-            try: return await detect_hallucination(diagnosis, evidence_text)
-            except Exception as e: logger.error(f"Hallucination check failed: {e}"); return 0.0, ""
-            
-        async def run_risk():
-            try: return await calculate_risk({"history": "placeholder data"}, diagnosis)
-            except Exception as e: logger.error(f"Risk engine failed: {e}"); return 0, "Unknown"
-            
-        async def run_temporal():
-            try: analyze_trends({"records": []})
-            except Exception as e: logger.error(f"Temporal analyzer failed: {e}")
-            
-        async def run_emergency():
-            try: return detect_emergency(text_query, diagnosis)
-            except Exception as e: logger.error(f"Emergency detection failed: {e}"); return False, ""
-            
-        async def run_differential():
-            try: return await generate_differential(evidence_text)
-            except Exception as e: logger.error(f"Differential diagnosis failed: {e}"); return []
-
-        hallucination_res, risk_res, _, emergency_res, differential_res = await asyncio.gather(
-            run_hallucination(),
-            run_risk(),
-            run_temporal(),
-            run_emergency(),
-            run_differential()
-        )
-        
-        if hallucination_res: hallucination_score, _ = hallucination_res
-        if risk_res: risk_score, risk_level = risk_res
-        if emergency_res: emergency_flag, _ = emergency_res
-        if differential_res: differential = differential_res
-
-        # 9. Calculate confidence score
-        try:
-            logger.info("Step 9: Confidence Engine...")
-            # Assuming mock retrieval scores of 0.85
-            confidence = calculate_confidence([0.85], hallucination_score)
-        except Exception as e:
-            logger.error(f"Confidence calculation failed: {e}")
-
-        # 10. Generate recommendations & Final structured report
-        try:
-            logger.info("Step 10: Recommendation & Final Report Generation...")
-            meal, act = generate_recommendations(diagnosis, {})
-            recommendations = {"meal_plan": meal, "activity_plan": act}
-            
-            # Silent Bias Check
-            check_bias({}, diagnosis)
-        except Exception as e:
-            logger.error(f"Recommendations failed: {e}")
-
-        recommended_specialty = "General"
-        text_lower = text_query.lower()
-        diag_lower = diagnosis.lower()
-        if any(w in text_lower or w in diag_lower for w in ["heart", "cardio", "chest"]):
-            recommended_specialty = "Cardiology"
-        elif any(w in text_lower or w in diag_lower for w in ["brain", "neuro", "headache", "nerve"]):
-            recommended_specialty = "Neurology"
-        elif any(w in text_lower or w in diag_lower for w in ["bone", "joint", "ortho", "fracture"]):
-            recommended_specialty = "Orthopaedic"
-        elif any(w in text_lower or w in diag_lower for w in ["cycle", "gyn", "period", "cramp"]):
-            recommended_specialty = "Gynaecology"
-
-        # Construct final JSON structured exactly as requested
-        final_data_payload = {
-            "diagnosis": diagnosis,
-            "differential_diagnosis": differential,
-            "confidence_score": confidence,
-            "risk_score": risk_score,
-            "hallucination_score": hallucination_score,
-            "emergency_flag": emergency_flag,
-            "recommended_specialty": recommended_specialty,
-            "recommendations": recommendations,
-            "evidence": evidence_text,
-            "heatmap": heatmap_path,
-            
-            # Backwards compatibility injected alias keys to prevent Frontend breaking
-            "final_report": report_generator.format_final_report({
-                "diagnosis": diagnosis, "differential_diagnosis": differential,
-                "confidence_score": confidence, "risk_score": risk_score,
-                "hallucination_score": hallucination_score, "emergency_flag": emergency_flag,
-                "recommendations": recommendations, "evidence": evidence_text
-            }),
-            "confidence_calibration": {"overall_confidence": confidence},
-            "hallucination_audit": {"hallucination_detected": hallucination_score > 0.5, "message": f"Raw Score: {hallucination_score}"},
-            "risk_assessment": {"risk_score": risk_score, "risk_level": risk_level},
-            "retrieved_context_used": evidence_text
+        initial_state = {
+            "text_query": text_query,
+            "image": image,
+            "evidence_text": "",
+            "evidence_image": "",
+            "diagnosis": "",
+            "hallucination_score": 0.0,
+            "risk_score": 0,
+            "risk_level": "Unknown",
+            "emergency_flag": False,
+            "differential": [],
+            "confidence": 0.0,
+            "recommendations": {},
+            "heatmap_path": "",
+            "recommended_specialty": "General",
+            "final_payload": {}
         }
-        
-        logger.info("== MEDRAG PIPELINE COMPLETE ==")
-        return final_data_payload
+
+        # Run the compiled LangGraph workflow asynchronously
+        final_state = await medrag_agent.ainvoke(initial_state)
+
+        logger.info("== MEDRAG LANGGRAPH PIPELINE COMPLETE ==")
+        return final_state["final_payload"]
 
 core_pipeline = CorePipeline()

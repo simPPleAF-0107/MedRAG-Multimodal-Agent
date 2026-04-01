@@ -120,7 +120,7 @@ class ApiService {
         'sex': data['sex']
       };
     } catch (e) {
-      print('Backend login failed, falling back to mock: $e');
+      debugPrint('Backend login failed, falling back to mock: $e');
       await Future.delayed(const Duration(milliseconds: 800));
 
       if (role == 'doctor') {
@@ -201,7 +201,7 @@ class ApiService {
         'role': 'patient'
       };
     } catch (e) {
-      print('Backend register failed, falling back to mock: $e');
+      debugPrint('Backend register failed, falling back to mock: $e');
       await Future.delayed(const Duration(milliseconds: 1500));
       _mockPatients.add({
         'identifier': email.isNotEmpty ? email : contactNumber,

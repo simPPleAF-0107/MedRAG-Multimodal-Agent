@@ -1,0 +1,83 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "type": "entity",
+      "id": "elevated crp and joint pain"
+    },
+    {
+      "type": "entity",
+      "id": "elevated crp (8.4) and esr"
+    },
+    {
+      "type": "entity",
+      "id": "hba1c rising"
+    },
+    {
+      "type": "entity",
+      "id": "diabetes control deteriorating. metformin increased."
+    },
+    {
+      "type": "entity",
+      "id": "metabolic review"
+    },
+    {
+      "type": "entity",
+      "id": "mental health follow-up for gad"
+    },
+    {
+      "type": "entity",
+      "id": "significant improvement in daily functioning."
+    },
+    {
+      "type": "entity",
+      "id": "acute dyspnea and lower extremity edema"
+    },
+    {
+      "type": "entity",
+      "id": "acute-on-chronic hf exacerbation. iv diuresis"
+    },
+    {
+      "type": "entity",
+      "id": "migraine management review"
+    },
+    {
+      "type": "entity",
+      "id": "significant improvement with topiramate 25mg"
+    }
+  ],
+  "edges": [
+    {
+      "relation": "INDICATES",
+      "source": "elevated crp and joint pain",
+      "target": "elevated crp (8.4) and esr"
+    },
+    {
+      "relation": "INDICATES",
+      "source": "hba1c rising",
+      "target": "diabetes control deteriorating. metformin increased."
+    },
+    {
+      "relation": "INDICATES",
+      "source": "metabolic review",
+      "target": "diabetes control deteriorating. metformin increased."
+    },
+    {
+      "relation": "INDICATES",
+      "source": "mental health follow-up for gad",
+      "target": "significant improvement in daily functioning."
+    },
+    {
+      "relation": "INDICATES",
+      "source": "acute dyspnea and lower extremity edema",
+      "target": "acute-on-chronic hf exacerbation. iv diuresis"
+    },
+    {
+      "relation": "INDICATES",
+      "source": "migraine management review",
+      "target": "significant improvement with topiramate 25mg"
+    }
+  ]
+}

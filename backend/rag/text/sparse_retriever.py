@@ -22,19 +22,24 @@ class SparseRetriever:
             return
             
         try:
-            # Fetch all documents from ChromaDB
-            data = vector_store.text_collection.get()
-            if data and data.get("documents"):
-                self.corpus_docs = data["documents"]
-                self.corpus_ids = data["ids"]
-                self.corpus_metadatas = data.get("metadatas", [])
+            # Fetch all documents from Qdrant by scrolling
+            records, _ = vector_store.client.scroll(
+                collection_name=vector_store.text_collection_name,
+                limit=10000,
+                with_payload=True
+            )
+            
+            if records:
+                self.corpus_docs = [r.payload.get("document", "") for r in records]
+                self.corpus_ids = [str(r.id) for r in records]
+                self.corpus_metadatas = [r.payload for r in records]
                 
                 # Tokenize for BM25
                 tokenized_corpus = [doc.lower().split() for doc in self.corpus_docs]
                 self.bm25 = BM25Okapi(tokenized_corpus)
                 logger.info(f"Initialized BM25 index with {len(self.corpus_docs)} documents.")
             else:
-                logger.warning("No documents found in ChromaDB to build BM25 index.")
+                logger.warning("No documents found in Qdrant to build BM25 index.")
         except Exception as e:
             logger.error(f"Failed to initialize BM25 index: {e}")
             

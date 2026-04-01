@@ -3,7 +3,8 @@ uvicorn
 pydantic
 pydantic-settings
 SQLAlchemy
-chromadb
+qdrant-client
+fastembed
 sentence-transformers
 openai
 python-multipart
@@ -13,8 +14,9 @@ pytest-asyncio
 httpx
 loguru
 Pillow>=10.2.0
-rank_bm25
 fpdf2
+langchain-core
+langgraph
 apscheduler
 PyJWT
 passlib[bcrypt]

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
 
     # Vector DB Configuration
-    CHROMA_DB_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "vector-db")
+    QDRANT_DB_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "vector-db")
     TEXT_EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     IMAGE_EMBEDDING_MODEL: str = "openai/clip-vit-base-patch32"  # Example CLIP model
 

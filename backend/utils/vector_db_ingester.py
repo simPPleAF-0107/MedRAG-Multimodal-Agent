@@ -49,11 +49,26 @@ async def ingest_database_to_vector_store():
                 text=text_to_embed,
                 metadata=metadata
             )
+            
+            # --- GraphRAG Population ---
+            from backend.rag.graph_store import graph_store
+            # Simple assumption for prototype: associate primary symptom with diagnosis
+            if report.chief_complaint and report.final_report:
+                symptoms = [s.strip() for s in report.chief_complaint.split(',')]
+                for symptom in symptoms:
+                    # Simplify diagnosis to first 5 words for node
+                    simplified_diag = " ".join(report.final_report.split()[:5])
+                    graph_store.add_relationship(
+                        source=symptom,
+                        relation="INDICATES",
+                        target=simplified_diag
+                    )
+
             processed_count += 1
             if processed_count % 10 == 0:
                 print(f"Processed {processed_count}/{len(reports)}...")
                 
-        print(f"Ingestion complete! Successfully added {processed_count} documents to ChromaDB.")
+        print(f"Ingestion complete! Successfully added {processed_count} documents to Qdrant.")
         
         # Verify ingestion by performing a test query
         print("\\nRunning sanity check query: 'chest pain'")
