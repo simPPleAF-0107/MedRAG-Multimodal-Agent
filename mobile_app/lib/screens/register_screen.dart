@@ -383,7 +383,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               height: 300,
               decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: MedRagTheme.primaryCyan.withValues(alpha: 0.1)),
+                  color: MedRagTheme.primaryCyan.withOpacity(0.1)),
             )
                 .animate(
                     onPlay: (controller) => controller.repeat(reverse: true))
