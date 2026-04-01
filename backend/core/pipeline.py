@@ -129,6 +129,18 @@ class CorePipeline:
         except Exception as e:
             logger.error(f"Recommendations failed: {e}")
 
+        recommended_specialty = "General"
+        text_lower = text_query.lower()
+        diag_lower = diagnosis.lower()
+        if any(w in text_lower or w in diag_lower for w in ["heart", "cardio", "chest"]):
+            recommended_specialty = "Cardiology"
+        elif any(w in text_lower or w in diag_lower for w in ["brain", "neuro", "headache", "nerve"]):
+            recommended_specialty = "Neurology"
+        elif any(w in text_lower or w in diag_lower for w in ["bone", "joint", "ortho", "fracture"]):
+            recommended_specialty = "Orthopaedic"
+        elif any(w in text_lower or w in diag_lower for w in ["cycle", "gyn", "period", "cramp"]):
+            recommended_specialty = "Gynaecology"
+
         # Construct final JSON structured exactly as requested
         final_data_payload = {
             "diagnosis": diagnosis,
@@ -137,6 +149,7 @@ class CorePipeline:
             "risk_score": risk_score,
             "hallucination_score": hallucination_score,
             "emergency_flag": emergency_flag,
+            "recommended_specialty": recommended_specialty,
             "recommendations": recommendations,
             "evidence": evidence_text,
             "heatmap": heatmap_path,

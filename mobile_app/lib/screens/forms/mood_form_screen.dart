@@ -30,12 +30,16 @@ class _MoodFormScreenState extends State<MoodFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('How are you feeling today?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('How are you feeling today?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 32),
-            Text('Overall Mood: ${_moodValue.toInt()}/10', style: Theme.of(context).textTheme.titleSmall),
+            Text('Overall Mood: ${_moodValue.toInt()}/10',
+                style: Theme.of(context).textTheme.titleSmall),
             Slider(
               value: _moodValue,
-              min: 1, max: 10, divisions: 9,
+              min: 1,
+              max: 10,
+              divisions: 9,
               activeColor: Theme.of(context).primaryColor,
               onChanged: (val) {
                 UxUtils.hapticLight();
@@ -50,10 +54,13 @@ class _MoodFormScreenState extends State<MoodFormScreen> {
               ],
             ),
             const SizedBox(height: 32),
-            Text('Stress Level: ${_stressValue.toInt()}/10', style: Theme.of(context).textTheme.titleSmall),
+            Text('Stress Level: ${_stressValue.toInt()}/10',
+                style: Theme.of(context).textTheme.titleSmall),
             Slider(
               value: _stressValue,
-              min: 1, max: 10, divisions: 9,
+              min: 1,
+              max: 10,
+              divisions: 9,
               activeColor: Colors.deepOrangeAccent,
               onChanged: (val) {
                 UxUtils.hapticLight();
@@ -61,10 +68,13 @@ class _MoodFormScreenState extends State<MoodFormScreen> {
               },
             ),
             const SizedBox(height: 32),
-            Text('Sleep Duration: ${_sleepHours.toStringAsFixed(1)} hours', style: Theme.of(context).textTheme.titleSmall),
+            Text('Sleep Duration: ${_sleepHours.toStringAsFixed(1)} hours',
+                style: Theme.of(context).textTheme.titleSmall),
             Slider(
               value: _sleepHours,
-              min: 0, max: 16, divisions: 32,
+              min: 0,
+              max: 16,
+              divisions: 32,
               activeColor: Colors.indigoAccent,
               onChanged: (val) {
                 UxUtils.hapticLight();
@@ -75,8 +85,10 @@ class _MoodFormScreenState extends State<MoodFormScreen> {
             DropdownButtonFormField<String>(
               initialValue: _energyLevel,
               decoration: const InputDecoration(labelText: 'Energy Level'),
-              items: ['Low', 'Medium', 'High', 'Hyperactive'].map((String value) {
-                return DropdownMenuItem<String>(value: value, child: Text(value));
+              items:
+                  ['Low', 'Medium', 'High', 'Hyperactive'].map((String value) {
+                return DropdownMenuItem<String>(
+                    value: value, child: Text(value));
               }).toList(),
               onChanged: (newValue) => setState(() => _energyLevel = newValue!),
             ),

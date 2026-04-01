@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     LayoutDashboard,
@@ -11,21 +11,47 @@ import {
     Smile,
     CalendarHeart,
     ChevronRight,
-    Settings
+    Settings,
+    LogOut,
+    CalendarCheck
 } from 'lucide-react';
 
 const Sidebar = () => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const [user, setUser] = useState(null);
+
+    useEffect(() => {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+            setUser(JSON.parse(stored));
+        }
+    }, []);
+
+    const handleSignOut = () => {
+        localStorage.removeItem('user');
+        navigate('/login');
+    };
+
+    const isDoctor = user?.role === 'doctor';
+
     const links = [
         { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/upload', icon: UploadCloud, label: 'Upload Record' },
         { to: '/reports', icon: FileText, label: 'Diagnosis Reports' },
         { to: '/chat', icon: MessageSquare, label: 'AI Assistant' },
-        { to: '/meal-planner', icon: Utensils, label: 'Meal Planner' },
-        { to: '/activity', icon: Activity, label: 'Activity Tracker' },
-        { to: '/mood-tracker', icon: Smile, label: 'Mood Tracker' },
-        { to: '/cycle-tracker', icon: CalendarHeart, label: 'Cycle Tracker' },
+        { to: '/appointments', icon: CalendarCheck, label: 'Appointments' },
+        ...(!isDoctor ? [
+            { to: '/meal-planner', icon: Utensils, label: 'Meal Planner' },
+            { to: '/activity', icon: Activity, label: 'Activity Tracker' },
+            { to: '/mood-tracker', icon: Smile, label: 'Mood Tracker' },
+            ...(user?.sex === 'Female' ? [{ to: '/cycle-tracker', icon: CalendarHeart, label: 'Cycle Tracker' }] : [])
+        ] : []),
     ];
+
+    const userName = user?.name || 'User';
+    const userRole = user?.role === 'doctor' ? 'Doctor' : 'Patient';
+    const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
     return (
         <motion.aside 
@@ -82,19 +108,25 @@ const Sidebar = () => {
 
             <motion.div 
                 whileHover={{ y: -2 }}
-                className="p-4 mx-4 mb-4 rounded-xl bg-gradient-to-b from-white/10 to-white/5 border border-white/10 hover:border-brand-500/30 transition-all duration-300 cursor-pointer shadow-lg z-10"
+                className="p-4 mx-4 mb-4 rounded-xl bg-gradient-to-b from-white/10 to-white/5 border border-white/10 hover:border-brand-500/30 transition-all duration-300 shadow-lg z-10"
             >
                 <div className="flex items-center">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-coral-500 to-brand-500 flex items-center justify-center text-white font-bold shadow-md relative group">
-                        DR
+                        {userInitials}
                         <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0B0C10]"></div>
                     </div>
                     <div className="ml-3 flex-1 flex justify-between items-center">
                         <div>
-                            <p className="text-sm font-bold text-slate-100">Dr. Smith</p>
-                            <p className="text-xs text-brand-400 font-medium">Cardiologist</p>
+                            <p className="text-sm font-bold text-slate-100">{userName}</p>
+                            <p className="text-xs text-brand-400 font-medium">{userRole}</p>
                         </div>
-                        <Settings size={16} className="text-slate-400 hover:text-white transition-colors" />
+                        <button
+                            onClick={handleSignOut}
+                            title="Sign out"
+                            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                        >
+                            <LogOut size={16} className="text-slate-400 hover:text-coral-400 transition-colors" />
+                        </button>
                     </div>
                 </div>
             </motion.div>
@@ -103,3 +135,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+

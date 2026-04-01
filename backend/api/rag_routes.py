@@ -5,7 +5,7 @@ from typing import Optional
 from backend.database.db import get_db
 from backend.core.pipeline import core_pipeline
 from backend.rag.image.image_processor import image_processor
-from backend.api.deps import get_current_doctor
+from backend.api.deps import get_current_doctor, get_current_active_user
 from backend.database.models import User
 
 router = APIRouter(
@@ -13,34 +13,58 @@ router = APIRouter(
     tags=["rag"]
 )
 
+from typing import Optional, List
+
 @router.post("/generate-report")
 async def generate_report(
     query: str = Form(...),
-    image: Optional[UploadFile] = File(None),
+    files: List[UploadFile] = File([]),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_doctor)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
-    Generate a diagnosis report given a medical text query and optional image.
-    This routes straight to the MedRAG core pipeline.
+    Generate a diagnosis report given a medical text query and multiple optional images/texts.
+    Concatenates text documents to the query and passes images individually to the RAG pipeline.
     """
     try:
-        pil_image = None
-        if image:
-            # Quick check if it's an image
-            if not image.content_type.startswith("image/"):
-                raise HTTPException(status_code=400, detail="File must be an image.")
+        texts = []
+        images = []
+        for file in files:
+            # Check content type and extension
+            if file.content_type.startswith("text/") or file.filename.endswith((".txt", ".md", ".csv")):
+                content = await file.read()
+                texts.append(content.decode("utf-8", errors="ignore"))
+            elif file.content_type.startswith("image/"):
+                contents = await file.read()
+                images.append(image_processor.load_image_from_bytes(contents))
+
+        # Concatenate text to query
+        combined_query = query
+        if texts:
+            combined_query += "\n\n[Provided Clinical Documents]:\n" + "\n---\n".join(texts)
+
+        # Run pipeline
+        results = []
+        if not images:
+            results.append(await core_pipeline.run_multimodal_rag_pipeline(text_query=combined_query, image=None))
+        else:
+            for img in images:
+                res = await core_pipeline.run_multimodal_rag_pipeline(text_query=combined_query, image=img)
+                results.append(res)
+
+        # Merge results for frontend payload
+        final_result = results[0].copy()
+        if len(results) > 1:
+            for i, res in enumerate(results[1:], start=2):
+                final_result["diagnosis"] += f"\n\n--- Image {i} Analysis ---\n{res['diagnosis']}"
+                if res.get("evidence"):
+                    final_result["evidence"] += f"\n\n--- Image {i} Evidence ---\n{res['evidence']}"
                 
-            contents = await image.read()
-            pil_image = image_processor.load_image_from_bytes(contents)
-
-        # Execute Modal RAG Pipeline
-        result = await core_pipeline.run_multimodal_rag_pipeline(
-            text_query=query,
-            image=pil_image
-        )
-
-        return {"status": "success", "data": result}
+                # Combine alias representations as well so UI renders it!
+                if "final_report" in final_result:
+                     final_result["final_report"] += f"\n\n--- Image {i} Analysis ---\n{res['diagnosis']}"
+        final_result["status"] = "success"
+        return final_result
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")

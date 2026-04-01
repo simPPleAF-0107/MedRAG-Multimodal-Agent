@@ -23,9 +23,9 @@ class UploadWidget extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withOpacity(0.05),
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2), width: 1.5),
+                  border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.2), width: 1.5),
                 ),
                 child: Column(
                   children: [
@@ -55,9 +55,9 @@ class UploadWidget extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.05),
+                  color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Theme.of(context).colorScheme.secondary.withOpacity(0.2), width: 1.5),
+                  border: Border.all(color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.2), width: 1.5),
                 ),
                 child: Column(
                   children: [

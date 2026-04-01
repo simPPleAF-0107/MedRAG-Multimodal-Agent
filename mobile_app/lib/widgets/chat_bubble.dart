@@ -18,11 +18,11 @@ class ChatBubble extends StatelessWidget {
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
         decoration: BoxDecoration(
           color: isUser 
-              ? MedRagTheme.primaryCyan.withOpacity(0.9) 
-              : MedRagTheme.surfaceDark.withOpacity(0.5),
+              ? MedRagTheme.primaryCyan.withValues(alpha: 0.9) 
+              : MedRagTheme.surfaceDark.withValues(alpha: 0.5),
           border: isUser 
               ? Border.all(color: MedRagTheme.primaryCyan) 
-              : Border.all(color: Colors.white.withOpacity(0.1)),
+              : Border.all(color: Colors.white.withValues(alpha: 0.1)),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(24),
             topRight: const Radius.circular(24),
@@ -31,7 +31,7 @@ class ChatBubble extends StatelessWidget {
           ),
           boxShadow: isUser 
               ? MedRagTheme.neonShadow 
-              : [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10)],
+              : [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10)],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -42,9 +42,9 @@ class ChatBubble extends StatelessWidget {
                 margin: const EdgeInsets.only(right: 10),
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: MedRagTheme.primaryCyan.withOpacity(0.2),
+                  color: MedRagTheme.primaryCyan.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
-                  border: Border.all(color: MedRagTheme.primaryCyan.withOpacity(0.5)),
+                  border: Border.all(color: MedRagTheme.primaryCyan.withValues(alpha: 0.5)),
                 ),
                 child: const Icon(Icons.psychology_outlined, color: MedRagTheme.primaryCyan, size: 16),
               ),

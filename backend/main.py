@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from backend.config import settings
 from backend.database.db import init_db
-from backend.api import rag_routes, patient_routes, upload_routes, chat_routes, system_routes, voice_routes, reminder_routes, auth_routes, vitals_routes
+from backend.api import rag_routes, patient_routes, upload_routes, chat_routes, system_routes, voice_routes, reminder_routes, auth_routes, vitals_routes, appointment_routes
 from backend.reminders.scheduler import reminder_scheduler
 from backend.utils.logger import logger
 
@@ -31,7 +31,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], # Update for production
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -46,6 +46,7 @@ app.include_router(system_routes.router, prefix=settings.API_V1_STR)
 app.include_router(voice_routes.router, prefix=settings.API_V1_STR)
 app.include_router(reminder_routes.router, prefix=settings.API_V1_STR)
 app.include_router(vitals_routes.router, prefix=settings.API_V1_STR)
+app.include_router(appointment_routes.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():

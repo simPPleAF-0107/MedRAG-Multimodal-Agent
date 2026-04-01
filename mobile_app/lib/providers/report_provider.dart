@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
@@ -17,11 +18,11 @@ class ReportProvider with ChangeNotifier {
     try {
       _patientHistory = await ApiService().getReports(patientId);
     } catch (e) {
-      print("Error loading history: $e");
+      debugPrint("Error loading history: $e");
       // Load fallback stub on error
       _patientHistory = {
-        'first_name': 'Jane',
-        'last_name': 'Doe',
+        'first_name': '',
+        'last_name': '',
         'reports': [],
         'mood_logs': [],
         'activity_logs': [],

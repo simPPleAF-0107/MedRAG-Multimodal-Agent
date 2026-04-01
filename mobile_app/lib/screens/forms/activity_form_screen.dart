@@ -34,24 +34,36 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Log Rehabilitation & Exercise', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Log Rehabilitation & Exercise',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 32),
             DropdownButtonFormField<String>(
               initialValue: _selectedActivity,
               decoration: const InputDecoration(labelText: 'Activity Type'),
-              items: ['Walking', 'Running', 'Cycling', 'Swimming', 'Physical Therapy'].map((String value) {
-                return DropdownMenuItem<String>(value: value, child: Text(value));
+              items: [
+                'Walking',
+                'Running',
+                'Cycling',
+                'Swimming',
+                'Physical Therapy'
+              ].map((String value) {
+                return DropdownMenuItem<String>(
+                    value: value, child: Text(value));
               }).toList(),
-              onChanged: (newValue) => setState(() => _selectedActivity = newValue!),
+              onChanged: (newValue) =>
+                  setState(() => _selectedActivity = newValue!),
             ),
             const SizedBox(height: 24),
             DropdownButtonFormField<String>(
               initialValue: _intensityLevel,
               decoration: const InputDecoration(labelText: 'Intensity Level'),
-              items: ['Low', 'Moderate', 'High', 'Maximum Effort'].map((String value) {
-                return DropdownMenuItem<String>(value: value, child: Text(value));
+              items: ['Low', 'Moderate', 'High', 'Maximum Effort']
+                  .map((String value) {
+                return DropdownMenuItem<String>(
+                    value: value, child: Text(value));
               }).toList(),
-              onChanged: (newValue) => setState(() => _intensityLevel = newValue!),
+              onChanged: (newValue) =>
+                  setState(() => _intensityLevel = newValue!),
             ),
             const SizedBox(height: 24),
             Row(

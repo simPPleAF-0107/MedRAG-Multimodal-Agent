@@ -15,10 +15,10 @@ const stubTrends = [
 ];
 
 const mockPatientList = [
-    { id: 'p1', name: 'John Doe', risk: 68, lastVisit: '2026-03-20', status: 'High Risk' },
-    { id: 'p2', name: 'Jane Smith', risk: 42, lastVisit: '2026-03-15', status: 'Stable' },
-    { id: 'p3', name: 'Bob User', risk: 85, lastVisit: '2026-03-21', status: 'Critical' },
-    { id: 'p4', name: 'Alice Wong', risk: 25, lastVisit: '2026-03-10', status: 'Stable' },
+    { id: 'JD123456', name: 'John Doe', risk: 68, lastVisit: '2026-03-20', status: 'High Risk' },
+    { id: 'JS654321', name: 'Jane Smith', risk: 42, lastVisit: '2026-03-15', status: 'Stable' },
+    { id: 'BU112233', name: 'Bob User', risk: 85, lastVisit: '2026-03-21', status: 'Critical' },
+    { id: 'AW998877', name: 'Alice Wong', risk: 25, lastVisit: '2026-03-10', status: 'Stable' },
 ];
 
 const containerVariants = {
@@ -105,7 +105,7 @@ const Dashboard = () => {
                             </motion.div>
                             <h1 className="text-4xl font-black text-white tracking-tight drop-shadow-md">Clinical Command Center</h1>
                         </div>
-                        <p className="text-slate-400 mt-2 text-lg">Dr. {user.name} • Active Triage Queue</p>
+                        <p className="text-slate-400 mt-2 text-lg">{user.name} • Active Triage Queue</p>
                     </div>
                 </div>
 
@@ -113,7 +113,7 @@ const Dashboard = () => {
                     {mockPatientList.map(p => (
                         <motion.div variants={itemVariants} key={p.id} className="relative group">
                             <div className="absolute inset-0 bg-gradient-to-br from-brand-500/0 to-brand-500/5 rounded-2xl blur-xl group-hover:from-brand-500/20 transition-all duration-500" />
-                            <div className="glass-panel p-6 h-full relative border border-white/5 group-hover:border-brand-500/50 hover:shadow-[0_0_30px_rgba(69,243,255,0.15)] transition-all duration-300 transform group-hover:-translate-y-1 cursor-pointer overflow-hidden backdrop-blur-xl">
+                            <div onClick={() => navigate(`/patient/${p.id}`)} className="glass-panel p-6 h-full relative border border-white/5 group-hover:border-brand-500/50 hover:shadow-[0_0_30px_rgba(69,243,255,0.15)] transition-all duration-300 transform group-hover:-translate-y-1 cursor-pointer overflow-hidden backdrop-blur-xl">
                                 
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="bg-white/5 p-3 rounded-xl border border-white/10 shadow-inner">
@@ -160,12 +160,22 @@ const Dashboard = () => {
                     </h1>
                     <p className="text-slate-400 mt-2 text-lg">Intelligent telemetry for <span className="text-white font-semibold">{patientData?.first_name} {patientData?.last_name}</span></p>
                 </div>
-                <div className="flex items-center space-x-4 relative z-10 w-full md:w-auto">
+                <div className="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-4 relative z-10 w-full md:w-auto mt-4 md:mt-0">
+                    {user?.user_id && (
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate(`/patient/${user.user_id}`)}
+                            className="bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/30 px-6 py-3 rounded-xl font-semibold transition-all flexitems-center w-full md:w-auto whitespace-nowrap"
+                        >
+                            My Profile
+                        </motion.button>
+                    )}
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/upload')}
-                        className="btn-primary w-full md:w-auto"
+                        className="btn-primary w-full md:w-auto whitespace-nowrap"
                     >
                         + New Assessment
                     </motion.button>

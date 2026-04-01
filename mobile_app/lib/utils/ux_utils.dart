@@ -59,7 +59,7 @@ class UxUtils {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       // In a real app we'd use 'shimmer' package, but for prototype simple grey pulse is ok
@@ -69,7 +69,7 @@ class UxUtils {
           height: 24,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.black12),
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white24),
           ),
         ),
       ),
@@ -85,17 +85,17 @@ class UxUtils {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: Colors.grey.shade400),
+            Icon(icon, size: 64, color: Colors.white.withValues(alpha: 0.3)),
             const SizedBox(height: 24),
             Text(
               title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600, height: 1.5),
+              style: TextStyle(fontSize: 16, color: Colors.white.withValues(alpha: 0.5), height: 1.5),
               textAlign: TextAlign.center,
             ),
             if (onAction != null && actionText != null) ...[

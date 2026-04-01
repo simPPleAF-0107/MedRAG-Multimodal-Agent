@@ -43,7 +43,7 @@ class MedRAGApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         home: Consumer<UserProvider>(
           builder: (context, user, _) {
-            return user.isAuthenticated ? const MainNavigation() : const LoginScreen();
+            return user.isAuthenticated ? MainNavigation(key: MainNavigation.navKey) : const LoginScreen();
           }
         ),
       ),
@@ -54,39 +54,55 @@ class MedRAGApp extends StatelessWidget {
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
+  static final GlobalKey<MainNavigationState> navKey = GlobalKey<MainNavigationState>();
+
   @override
-  State<MainNavigation> createState() => _MainNavigationState();
+  State<MainNavigation> createState() => MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const UploadScreen(),
-    const ChatScreen(),
-    const ReportScreen(),
-    const TrackerScreen(),
-  ];
-
-  final List<IconData> _icons = [
-    Icons.dashboard_rounded,
-    Icons.psychology_rounded,
-    Icons.chat_bubble_rounded,
-    Icons.description_rounded,
-    Icons.query_stats_rounded,
-  ];
-
-  final List<String> _labels = [
-    'Dash',
-    'Upload',
-    'Agent',
-    'Logs',
-    'Track',
-  ];
+  void switchTab(int index) {
+    if (index >= 0 && index < 5) {
+      UxUtils.hapticLight();
+      setState(() => _currentIndex = index);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDoctor = context.watch<UserProvider>().isDoctor;
+    
+    // Construct dynamic tabs based on role
+    final List<Widget> screens = [
+      const DashboardScreen(),
+      const UploadScreen(),
+      const ChatScreen(),
+      const ReportScreen(),
+      if (!isDoctor) const TrackerScreen(),
+    ];
+
+    final List<IconData> icons = [
+      Icons.dashboard_rounded,
+      Icons.psychology_rounded,
+      Icons.chat_bubble_rounded,
+      Icons.description_rounded,
+      if (!isDoctor) Icons.query_stats_rounded,
+    ];
+
+    final List<String> labels = [
+      'Dash',
+      'Upload',
+      'Agent',
+      'Logs',
+      if (!isDoctor) 'Track',
+    ];
+
+    if (_currentIndex >= screens.length) {
+      _currentIndex = 0;
+    }
+
     return Scaffold(
       extendBody: true,
       body: AnimatedSwitcher(
@@ -107,7 +123,7 @@ class _MainNavigationState extends State<MainNavigation> {
         },
         child: Container(
           key: ValueKey<int>(_currentIndex),
-          child: _screens[_currentIndex],
+          child: screens[_currentIndex],
         ),
       ),
       bottomNavigationBar: Container(
@@ -123,7 +139,7 @@ class _MainNavigationState extends State<MainNavigation> {
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(_icons.length, (index) {
+              children: List.generate(icons.length, (index) {
                 final isSelected = _currentIndex == index;
                 return GestureDetector(
                   onTap: () {
@@ -142,18 +158,18 @@ class _MainNavigationState extends State<MainNavigation> {
                     ),
                     decoration: BoxDecoration(
                       color: isSelected 
-                        ? MedRagTheme.primaryCyan.withOpacity(0.15) 
+                        ? MedRagTheme.primaryCyan.withValues(alpha: 0.15) 
                         : Colors.transparent,
                       borderRadius: BorderRadius.circular(20),
                       border: isSelected 
-                        ? Border.all(color: MedRagTheme.primaryCyan.withOpacity(0.5)) 
+                        ? Border.all(color: MedRagTheme.primaryCyan.withValues(alpha: 0.5)) 
                         : Border.all(color: Colors.transparent),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _icons[index],
+                          icons[index],
                           color: isSelected ? MedRagTheme.primaryCyan : MedRagTheme.textMuted,
                           size: isSelected ? 26 : 24,
                         ).animate(target: isSelected ? 1 : 0)
@@ -164,7 +180,7 @@ class _MainNavigationState extends State<MainNavigation> {
                            Padding(
                              padding: const EdgeInsets.only(left: 6.0),
                              child: Text(
-                               _labels[index],
+                               labels[index],
                                style: TextStyle(
                                  color: MedRagTheme.primaryCyan,
                                  fontWeight: FontWeight.bold,

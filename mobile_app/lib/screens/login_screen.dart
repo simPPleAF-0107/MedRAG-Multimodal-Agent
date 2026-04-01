@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (mounted && res['status'] == 'success') {
          UxUtils.hapticMedium();
-         context.read<UserProvider>().setUser(res['user_id'].toString(), res['email'], res['role']);
+         context.read<UserProvider>().setUser(res['user_id'].toString(), res['email'], res['role'], userName: res['name'], userSex: res['sex']);
       }
     } catch (e) {
       if (mounted) {
@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
             left: -100,
             child: Container(
               width: 300, height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: MedRagTheme.primaryCyan.withOpacity(0.15)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: MedRagTheme.primaryCyan.withValues(alpha: 0.15)),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true)).moveX(end: 100, duration: 5.seconds),
           ),
           Positioned(
@@ -73,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
             right: -100,
             child: Container(
               width: 300, height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: MedRagTheme.secondaryCoral.withOpacity(0.1)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: MedRagTheme.secondaryCoral.withValues(alpha: 0.1)),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true)).moveY(end: 100, duration: 4.seconds),
           ),
           
@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Secure Clinical Portal', 
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           ).animate().fadeIn(delay: 400.ms),
                           const SizedBox(height: 40),
@@ -191,9 +191,9 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.15) : Colors.white.withOpacity(0.05),
+            color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05),
             border: Border.all(
-              color: isSelected ? Theme.of(context).primaryColor : Colors.white.withOpacity(0.1),
+              color: isSelected ? Theme.of(context).primaryColor : Colors.white.withValues(alpha: 0.1),
               width: isSelected ? 2 : 1
             ),
             borderRadius: BorderRadius.circular(16),

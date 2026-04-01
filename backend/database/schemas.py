@@ -59,6 +59,7 @@ class ReportBase(BaseModel):
     risk_score: Optional[float] = None
     hallucination_score: Optional[float] = None
     emergency_flag: Optional[bool] = None
+    recommended_specialty: Optional[str] = None
 
 class ReportCreate(ReportBase):
     patient_id: int
@@ -77,6 +78,7 @@ class PatientBase(BaseModel):
     first_name: str
     last_name: str
     date_of_birth: Optional[datetime] = None
+    sex: Optional[str] = None
     medical_history_summary: Optional[str] = None
     user_account_id: Optional[int] = None
 
@@ -101,9 +103,11 @@ class UserBase(BaseModel):
     username: str
     email: str
     role: str = "doctor"
+    specialty: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
+    role: str = "doctor"
 
 class UserResponse(UserBase):
     id: int
@@ -125,6 +129,26 @@ class AIFeedbackCreate(AIFeedbackBase):
 
 class AIFeedbackResponse(AIFeedbackBase):
     id: int
+    doctor_id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# --- Appointment Schemas ---
+
+class AppointmentBase(BaseModel):
+    appointment_date: datetime
+    status: str = "scheduled"
+    reason: Optional[str] = None
+
+class AppointmentCreate(AppointmentBase):
+    patient_id: int
+    doctor_id: int
+
+class AppointmentResponse(AppointmentBase):
+    id: int
+    patient_id: int
     doctor_id: int
     created_at: datetime
     

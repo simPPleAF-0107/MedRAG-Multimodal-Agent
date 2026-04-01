@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { UploadCloud, File, Image as ImageIcon, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const UploadBox = ({ onFileSelect }) => {
+const UploadBox = ({ onFilesSelect }) => {
     const [dragActive, setDragActive] = useState(false);
-    const [selectedFile, setSelectedFile] = useState(null);
+    const [selectedFiles, setSelectedFiles] = useState([]);
 
     const handleDrag = (e) => {
         e.preventDefault();
@@ -21,27 +21,29 @@ const UploadBox = ({ onFileSelect }) => {
         e.stopPropagation();
         setDragActive(false);
 
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFiles(Array.from(e.dataTransfer.files));
         }
     };
 
     const handleChange = (e) => {
         e.preventDefault();
-        if (e.target.files && e.target.files[0]) {
-            handleFile(e.target.files[0]);
+        if (e.target.files && e.target.files.length > 0) {
+            handleFiles(Array.from(e.target.files));
         }
     };
 
-    const handleFile = (file) => {
-        setSelectedFile(file);
-        if (onFileSelect) onFileSelect(file);
+    const handleFiles = (newFiles) => {
+        const updatedFiles = [...selectedFiles, ...newFiles];
+        setSelectedFiles(updatedFiles);
+        if (onFilesSelect) onFilesSelect(updatedFiles);
     };
 
-    const clearFile = (e) => {
+    const removeFile = (e, indexToRemove) => {
         e.stopPropagation();
-        setSelectedFile(null);
-        if (onFileSelect) onFileSelect(null);
+        const updatedFiles = selectedFiles.filter((_, index) => index !== indexToRemove);
+        setSelectedFiles(updatedFiles);
+        if (onFilesSelect) onFilesSelect(updatedFiles);
     };
 
     return (
@@ -59,13 +61,13 @@ const UploadBox = ({ onFileSelect }) => {
             <input
                 id="file-upload"
                 type="file"
-                multiple={false}
+                multiple={true}
                 onChange={handleChange}
                 className="hidden"
                 accept="image/*,.pdf,.txt,.doc,.docx"
             />
 
-            {!selectedFile ? (
+            {selectedFiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center space-y-5 relative z-10">
                     <motion.div 
                         animate={{ y: [0, -10, 0] }}
@@ -76,36 +78,51 @@ const UploadBox = ({ onFileSelect }) => {
                     </motion.div>
                     <div>
                         <p className="text-xl font-bold text-white tracking-wide">Click to upload or drag and drop</p>
-                        <p className="text-sm text-slate-400 mt-2 font-medium">Images (X-Ray, MRI) or Text Clinical Notes <br/> <span className="text-xs text-brand-500 opacity-80">(Max 50MB)</span></p>
+                        <p className="text-sm text-slate-400 mt-2 font-medium">Images (X-Ray, MRI) or Text Clinical Notes <br/> <span className="text-xs text-brand-500 opacity-80">(Multiple allowed)</span></p>
                     </div>
                 </div>
             ) : (
-                <div className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-xl hover:border-brand-500/30 transition-colors relative z-10 backdrop-blur-md shadow-lg">
-                    <div className="flex items-center space-x-4">
-                        <div className="p-3 bg-brand-500/20 rounded-lg border border-brand-500/30">
-                            {selectedFile.type.includes('image') ? (
-                                <ImageIcon className="text-brand-400 w-8 h-8" />
-                            ) : (
-                                <File className="text-brand-400 w-8 h-8" />
-                            )}
-                        </div>
-                        <div className="text-left">
-                            <p className="font-bold text-white text-base truncate max-w-[200px] sm:max-w-xs">
-                                {selectedFile.name}
-                            </p>
-                            <p className="text-xs text-slate-400 font-medium">
-                                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • {selectedFile.type || "Unknown File Type"}
-                            </p>
-                        </div>
+                <div className="space-y-3 relative z-10 w-full" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-between items-center mb-4">
+                        <span className="text-slate-300 font-medium">{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} attached</span>
+                        <button 
+                            type="button"
+                            onClick={() => document.getElementById('file-upload').click()}
+                            className="px-3 py-1 bg-white/10 hover:bg-brand-500/20 text-brand-400 text-sm rounded-lg transition-colors"
+                        >
+                            + Add More
+                        </button>
                     </div>
-                    <motion.button
-                        whileHover={{ scale: 1.1, rotate: 90 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={clearFile}
-                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors border border-transparent hover:border-red-500/30"
-                    >
-                        <X size={20} />
-                    </motion.button>
+                    {selectedFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl hover:border-brand-500/30 transition-colors backdrop-blur-md shadow-lg">
+                            <div className="flex items-center space-x-4">
+                                <div className="p-2 bg-brand-500/20 rounded-lg border border-brand-500/30">
+                                    {file.type.includes('image') ? (
+                                        <ImageIcon className="text-brand-400 w-6 h-6" />
+                                    ) : (
+                                        <File className="text-brand-400 w-6 h-6" />
+                                    )}
+                                </div>
+                                <div className="text-left w-full">
+                                    <p className="font-bold text-white text-sm truncate max-w-[150px] sm:max-w-xs">
+                                        {file.name}
+                                    </p>
+                                    <p className="text-xs text-slate-400 font-medium">
+                                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                </div>
+                            </div>
+                            <motion.button
+                                type="button"
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={(e) => removeFile(e, idx)}
+                                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                            >
+                                <X size={18} />
+                            </motion.button>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>

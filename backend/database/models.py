@@ -11,11 +11,12 @@ class User(Base):
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(200), nullable=False)
     role = Column(String(20), default="doctor", nullable=False) # Roles: doctor, patient, admin
+    specialty = Column(String(50), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    patients = relationship("Patient", back_populates="doctor")
+    patients = relationship("Patient", foreign_keys="[Patient.doctor_id]", back_populates="doctor")
 
 class Patient(Base):
     __tablename__ = "patients"
@@ -26,6 +27,30 @@ class Patient(Base):
     first_name = Column(String(50), nullable=False)
     last_name = Column(String(50), nullable=False)
     date_of_birth = Column(DateTime)
+    
+    # Extended Patient Profile Info
+    age = Column(Integer, nullable=True)
+    sex = Column(String(20), nullable=True)
+    blood_type = Column(String(10), nullable=True)
+    phone = Column(String(20), nullable=True)
+    address = Column(Text, nullable=True)
+    
+    # JSON encoded strings to simulate complex objects for the prototype
+    emergency_contact = Column(Text, nullable=True) # JSON strings
+    insurance = Column(Text, nullable=True)
+    vitals = Column(Text, nullable=True)
+    risk = Column(Integer, default=0)
+    status = Column(String(50), default='Stable')
+    last_visit = Column(DateTime, nullable=True)
+    
+    # Dynamic Lists (stored as JSON arrays)
+    conditions = Column(Text, nullable=True)
+    allergies = Column(Text, nullable=True)
+    medications = Column(Text, nullable=True)
+    lab_results = Column(Text, nullable=True)
+    risk_trend = Column(Text, nullable=True)
+    visit_history = Column(Text, nullable=True)
+    
     medical_history_summary = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -50,6 +75,7 @@ class Report(Base):
     risk_score = Column(Float, nullable=True)
     hallucination_score = Column(Float, nullable=True)
     emergency_flag = Column(Boolean, default=False)
+    recommended_specialty = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
@@ -107,4 +133,18 @@ class AIFeedback(Base):
 
     # Relationships
     report = relationship("Report")
+    doctor = relationship("User")
+
+class Appointment(Base):
+    __tablename__ = "appointments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"))
+    doctor_id = Column(Integer, ForeignKey("users.id"))
+    appointment_date = Column(DateTime, nullable=False)
+    status = Column(String(20), default="scheduled")
+    reason = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    patient = relationship("Patient")
     doctor = relationship("User")

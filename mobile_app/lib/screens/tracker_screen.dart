@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_provider.dart';
 import '../utils/ux_utils.dart';
 import 'forms/mood_form_screen.dart';
 import 'forms/activity_form_screen.dart';
@@ -11,6 +13,7 @@ class TrackerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<UserProvider>();
     return Scaffold(
       appBar: AppBar(title: const Text('Health Telemetry & Trackers')),
       body: ListView(
@@ -34,15 +37,17 @@ class TrackerScreen extends StatelessWidget {
             const ActivityFormScreen(),
           ),
           const SizedBox(height: 16),
-          _buildTrackerCard(
-            context,
-            Icons.calendar_month,
-            Colors.pink,
-            'Reproductive Timeline',
-            'Log physiological cycles.',
-            const CycleFormScreen(),
-          ),
-          const SizedBox(height: 16),
+          if (user.sex == 'Female') ...[
+            _buildTrackerCard(
+              context,
+              Icons.calendar_month,
+              Colors.pink,
+              'Reproductive Timeline',
+              'Log physiological cycles.',
+              const CycleFormScreen(),
+            ),
+            const SizedBox(height: 16),
+          ],
           _buildTrackerCard(
             context,
             Icons.restaurant,
@@ -51,6 +56,7 @@ class TrackerScreen extends StatelessWidget {
             'Track dietary considerations.',
             const MealFormScreen(),
           ),
+          const SizedBox(height: 100), // Bottom padding for floating nav bar
         ],
       ),
     );
@@ -72,10 +78,10 @@ class TrackerScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).cardTheme.color,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 )
@@ -86,7 +92,7 @@ class TrackerScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: color, size: 28),
@@ -99,12 +105,12 @@ class TrackerScreen extends StatelessWidget {
                   Text(title, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 4),
                   Text(subtitle, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
                   )),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400)
+            Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.3))
           ],
         ),
       ),

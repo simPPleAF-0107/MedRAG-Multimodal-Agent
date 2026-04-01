@@ -46,7 +46,8 @@ class _CycleFormScreenState extends State<CycleFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Log Physiological Cycles', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Log Physiological Cycles',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 32),
             InkWell(
               onTap: () => _selectDate(context),
@@ -56,7 +57,9 @@ class _CycleFormScreenState extends State<CycleFormScreen> {
                   prefixIcon: Icon(Icons.calendar_today),
                 ),
                 child: Text(
-                  _selectedDate == null ? 'Select Date' : '${_selectedDate!.toLocal()}'.split(' ')[0],
+                  _selectedDate == null
+                      ? 'Select Date'
+                      : '${_selectedDate!.toLocal()}'.split(' ')[0],
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ),
@@ -65,16 +68,22 @@ class _CycleFormScreenState extends State<CycleFormScreen> {
             DropdownButtonFormField<String>(
               initialValue: _flowIntensity,
               decoration: const InputDecoration(labelText: 'Flow Intensity'),
-              items: ['Spotting', 'Light', 'Medium', 'Heavy', 'Abnormal'].map((String value) {
-                return DropdownMenuItem<String>(value: value, child: Text(value));
+              items: ['Spotting', 'Light', 'Medium', 'Heavy', 'Abnormal']
+                  .map((String value) {
+                return DropdownMenuItem<String>(
+                    value: value, child: Text(value));
               }).toList(),
-              onChanged: (newValue) => setState(() => _flowIntensity = newValue!),
+              onChanged: (newValue) =>
+                  setState(() => _flowIntensity = newValue!),
             ),
             const SizedBox(height: 32),
-            Text('Cramps/Pain Severity: ${_crampsSeverity.toInt()}/10', style: Theme.of(context).textTheme.titleSmall),
+            Text('Cramps/Pain Severity: ${_crampsSeverity.toInt()}/10',
+                style: Theme.of(context).textTheme.titleSmall),
             Slider(
               value: _crampsSeverity,
-              min: 0, max: 10, divisions: 10,
+              min: 0,
+              max: 10,
+              divisions: 10,
               activeColor: Colors.pinkAccent,
               onChanged: (val) {
                 UxUtils.hapticLight();
