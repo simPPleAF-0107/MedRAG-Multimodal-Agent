@@ -71,11 +71,11 @@ class VectorStore:
         """
         Query the text collection. Returns data in a format similar to ChromaDB for backward compatibility.
         """
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=self.text_collection_name,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=n_results
-        )
+        ).points
         
         # Format for legacy compatibility
         formatted = {
@@ -90,11 +90,11 @@ class VectorStore:
         """
         Query the image collection.
         """
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=self.image_collection_name,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=n_results
-        )
+        ).points
         
         formatted = {
             "ids": [[res.id for res in results]],

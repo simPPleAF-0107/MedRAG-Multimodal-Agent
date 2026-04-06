@@ -156,9 +156,7 @@ export const logoutUser = () => {
 // --- RAG PIPELINE ---
 export const generateReport = async (formData) => {
     try {
-        const res = await api.post('/rag/generate-report', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        const res = await api.post('/rag/generate-report', formData);
         return res;
     } catch (e) {
         // Mock Fallback
@@ -180,11 +178,7 @@ export const generateReport = async (formData) => {
 };
 
 export const uploadFile = async (formData) => {
-    return await api.post('/upload/record', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    });
+    return await api.post('/upload/record', formData);
 };
 
 export const getPatientHistory = async (patientId) => {

@@ -1,0 +1,90 @@
+﻿python.exe : Traceback 
+(most recent call last):
+At line:1 char:1
++ & ".\backend\venv\Scripts\
+python.exe" tmp_test_rag.py 
+2>&1 | Out-File ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~
+    + CategoryInfo          
+    : NotSpecified: (Trace  
+  back (most recent call    
+ last)::String) [], Remo    
+teException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+  File 
+"D:\Projects\College\8th 
+Sem - SDP\MedRAG Multimodal 
+Agent\Prototype\tmp_test_rag
+.py", line 7, in <module>
+    with 
+urllib.request.urlopen(req, 
+timeout=10) as resp:
+         ~~~~~~~~~~~~~~~~~~~
+~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\url
+lib\request.py", line 189, 
+in urlopen
+    return opener.open(url, 
+data, timeout)
+           ~~~~~~~~~~~^^^^^^
+^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\url
+lib\request.py", line 489, 
+in open
+    response = 
+self._open(req, data)
+  File "C:\Python313\Lib\url
+lib\request.py", line 506, 
+in _open
+    result = self._call_chai
+n(self.handle_open, 
+protocol, protocol +
+                            
+  '_open', req)
+  File "C:\Python313\Lib\url
+lib\request.py", line 466, 
+in _call_chain
+    result = func(*args)
+  File "C:\Python313\Lib\url
+lib\request.py", line 1348, 
+in http_open
+    return self.do_open(http
+.client.HTTPConnection, req)
+           ~~~~~~~~~~~~^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\url
+lib\request.py", line 1323, 
+in do_open
+    r = h.getresponse()
+  File "C:\Python313\Lib\htt
+p\client.py", line 1430, in 
+getresponse
+    response.begin()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\htt
+p\client.py", line 331, in 
+begin
+    version, status, reason 
+= self._read_status()
+                            
+  ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\htt
+p\client.py", line 292, in 
+_read_status
+    line = str(self.fp.readl
+ine(_MAXLINE + 1), 
+"iso-8859-1")
+               ~~~~~~~~~~~~~
+~~~^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\soc
+ket.py", line 719, in 
+readinto
+    return 
+self._sock.recv_into(b)
+           
+~~~~~~~~~~~~~~~~~~~~^^^
+TimeoutError: timed out

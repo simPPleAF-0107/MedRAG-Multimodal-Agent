@@ -11,8 +11,8 @@ class EmergencyDetector:
         logger.info("Running emergency detector...")
         try:
             text_to_check = f"{symptoms} {diagnosis}".lower()
-            critical_keywords = ['myocardial', 'stroke', 'hemorrhage', 'sepsis', 'anaphylaxis', 'suicidal']
-            urgent_keywords = ['severe pain', 'fever > 103', 'shortness of breath']
+            critical_keywords = ['myocardial', 'stroke', 'hemorrhage', 'sepsis', 'anaphylaxis', 'suicidal', 'chest pain', 'numbness']
+            urgent_keywords = ['severe pain', 'fever > 103', 'shortness of breath', 'chest pain']
             
             for word in critical_keywords:
                 if word in text_to_check:
