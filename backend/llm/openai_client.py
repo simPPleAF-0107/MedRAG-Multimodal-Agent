@@ -26,7 +26,7 @@ class OpenAIClient:
         self, 
         prompt: str, 
         system_prompt: str = "You are a highly capable AI medical assistant.", 
-        model: str = "gpt-4o",
+        model: str = "gpt-5.4-mini",
         temperature: float = 0.2,
         max_tokens: int = 1500,
         use_cache: bool = True

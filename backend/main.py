@@ -4,7 +4,11 @@ from contextlib import asynccontextmanager
 
 from backend.config import settings
 from backend.database.db import init_db
-from backend.api import rag_routes, patient_routes, upload_routes, chat_routes, system_routes, voice_routes, reminder_routes, auth_routes, vitals_routes, appointment_routes
+from backend.api import (
+    rag_routes, patient_routes, upload_routes, chat_routes, 
+    system_routes, voice_routes, reminder_routes, auth_routes, 
+    vitals_routes, appointment_routes, notification_routes
+)
 from backend.reminders.scheduler import reminder_scheduler
 from backend.utils.logger import logger
 
@@ -47,6 +51,7 @@ app.include_router(voice_routes.router, prefix=settings.API_V1_STR)
 app.include_router(reminder_routes.router, prefix=settings.API_V1_STR)
 app.include_router(vitals_routes.router, prefix=settings.API_V1_STR)
 app.include_router(appointment_routes.router, prefix=settings.API_V1_STR)
+app.include_router(notification_routes.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():

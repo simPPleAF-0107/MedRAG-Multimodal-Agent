@@ -142,9 +142,26 @@ class Appointment(Base):
     patient_id = Column(Integer, ForeignKey("patients.id"))
     doctor_id = Column(Integer, ForeignKey("users.id"))
     appointment_date = Column(DateTime, nullable=False)
-    status = Column(String(20), default="scheduled")
+    status = Column(String(20), default="pending")
     reason = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     patient = relationship("Patient")
     doctor = relationship("User")
+
+class Notification(Base):
+    """
+    Stores system notifications for both doctors and patients.
+    """
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+    appointment_id = Column(Integer, ForeignKey("appointments.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user = relationship("User")
+    appointment = relationship("Appointment")

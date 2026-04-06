@@ -139,7 +139,7 @@ class AIFeedbackResponse(AIFeedbackBase):
 
 class AppointmentBase(BaseModel):
     appointment_date: datetime
-    status: str = "scheduled"
+    status: str = "pending"
     reason: Optional[str] = None
 
 class AppointmentCreate(AppointmentBase):
@@ -150,6 +150,27 @@ class AppointmentResponse(AppointmentBase):
     id: int
     patient_id: int
     doctor_id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class AppointmentStatusUpdate(BaseModel):
+    status: str
+
+# --- Notification Schemas ---
+
+class NotificationBase(BaseModel):
+    user_id: int
+    message: str
+    is_read: bool = False
+    appointment_id: Optional[int] = None
+
+class NotificationCreate(NotificationBase):
+    pass
+
+class NotificationResponse(NotificationBase):
+    id: int
     created_at: datetime
     
     class Config:
