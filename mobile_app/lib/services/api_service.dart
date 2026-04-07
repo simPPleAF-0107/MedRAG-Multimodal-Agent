@@ -249,20 +249,36 @@ class ApiService {
     }
 
     try {
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
+      // RAG pipeline can take several minutes – use a 10 minute timeout
+      var streamedResponse = await request.send()
+          .timeout(const Duration(minutes: 10));
+      var response = await http.Response.fromStream(streamedResponse)
+          .timeout(const Duration(minutes: 10));
+
+      // _handleResponse will throw on non-2xx. Propagate that directly.
       return _handleResponse(response);
     } catch (e) {
-      await Future.delayed(const Duration(seconds: 2));
-      return {
-        "status": "success",
-        "diagnosis":
-            "Mock Fallback Diagnosis: Potential localized inflammation or muscular strain based on observed patient metrics. Recommended rest, hydration, and NSAIDs as needed.",
-        "evidences": [
-          "Clinical Trial 1032 indicates 85% efficacy for standard NSAID protocol in similar strain patterns.",
-          "Image analysis (simulated): No apparent fractures. Soft tissue slightly elevated."
-        ]
-      };
+      // Only fall back to mock if it's a true network/connection failure.
+      // Re-throw API errors (401, 500 etc.) so the UI shows the real error.
+      final errMsg = e.toString();
+      if (errMsg.contains('SocketException') ||
+          errMsg.contains('Connection refused') ||
+          errMsg.contains('Failed host lookup') ||
+          errMsg.contains('TimeoutException')) {
+        // Backend is unreachable – return a clearly-labelled fallback
+        await Future.delayed(const Duration(seconds: 2));
+        return {
+          "status": "mock_fallback",
+          "diagnosis": "[Mock] Backend unreachable. Potential localized inflammation based on patient metrics.",
+          "final_report": "[Mock Fallback] Backend is offline. This is a simulated result only.",
+          "confidence_score": 0.0,
+          "risk_score": 0.0,
+          "evidences": [
+            "Mock: Clinical Trial 1032 indicates 85% efficacy for standard NSAID protocol.",
+          ]
+        };
+      }
+      rethrow; // Surface real API errors to the caller
     }
   }
 

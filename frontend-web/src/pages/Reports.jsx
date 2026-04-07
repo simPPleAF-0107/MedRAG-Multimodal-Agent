@@ -27,8 +27,16 @@ const Reports = () => {
         );
     }
 
-    const isHighConfidence = report?.confidence_calibration?.overall_confidence > 70;
-    const confidenceScore = report?.confidence_calibration?.overall_confidence?.toFixed(1) || "N/A";
+    // Backend returns confidence_score as 0.0-1.0 float, multiply by 100 for display
+    const rawConf = report?.confidence_score ?? report?.confidence_calibration?.overall_confidence ?? 0;
+    const confidencePercent = rawConf <= 1.0 ? rawConf * 100 : rawConf;
+    const isHighConfidence = confidencePercent > 70;
+    const confidenceScore = confidencePercent.toFixed(1);
+
+    // Derive risk_level from risk_score if not explicitly provided
+    const rawRisk = report?.risk_score ?? 0;
+    const riskPercent = rawRisk <= 1.0 ? rawRisk * 100 : rawRisk;
+    const riskLevel = report?.risk_level ?? (riskPercent > 70 ? 'High' : riskPercent > 40 ? 'Medium' : 'Low');
 
     return (
         <div className="space-y-6 animate-fade-in pb-8">
@@ -62,21 +70,21 @@ const Reports = () => {
                         <span>Hallucination Audit</span>
                     </div>
                     <p className="mt-2 text-lg font-medium">
-                        {report?.hallucination_audit?.hallucination_detected ? (
+                        {(report?.hallucination_score ?? 0) > 0.5 || report?.hallucination_audit?.hallucination_detected ? (
                             <span className="text-danger flex items-center"><ShieldAlert size={18} className="mr-2" /> Flagged Mismatch</span>
                         ) : (
                             <span className="text-success flex items-center"><ShieldCheck size={18} className="mr-2" /> Verifier Passed</span>
                         )}
                     </p>
                     <p className="text-xs text-slate-500 mt-1 truncate">
-                        {report?.hallucination_audit?.message || "No issues found in synthesized text."}
+                        {report?.hallucination_audit?.message || `Score: ${((report?.hallucination_score ?? 0) * 100).toFixed(1)}% — No issues found.`}
                     </p>
                 </div>
 
                 {/* Extracted Risk */}
                 <RiskScoreCard
-                    score={report?.risk_assessment?.risk_score || 50}
-                    level={report?.risk_assessment?.risk_level || "Medium"}
+                    score={riskPercent}
+                    level={riskLevel}
                 />
             </div>
 

@@ -34,21 +34,56 @@ async def seed():
 
         password_hash = get_password_hash("password123")
 
-        # ── DOCTORS ──
-        doc1 = User(username="dr.smith@medrag.com", email="dr.smith@medrag.com",
-                     hashed_password=password_hash, role="doctor", specialty="Cardiology")
-        doc2 = User(username="dr.jones@medrag.com", email="dr.jones@medrag.com",
-                     hashed_password=password_hash, role="doctor", specialty="Neurology")
-        doc3 = User(username="1234567890", email="dr.patel@medrag.com",
-                     hashed_password=password_hash, role="doctor", specialty="Orthopaedic")
-        doc4 = User(username="dr.lee@medrag.com", email="dr.lee@medrag.com",
-                     hashed_password=password_hash, role="doctor", specialty="Gynaecology")
-        doc5 = User(username="dr.evans@medrag.com", email="dr.evans@medrag.com",
-                     hashed_password=password_hash, role="doctor", specialty="General")
-        
-        db.add_all([doc1, doc2, doc3, doc4, doc5])
+        # ── DOCTORS (30 doctors across all major specialties) ──
+        DOCTORS = [
+            # Original 5
+            ("dr.smith@medrag.com",  "dr.smith@medrag.com",  "Cardiology"),
+            ("dr.jones@medrag.com",  "dr.jones@medrag.com",  "Neurology"),
+            ("1234567890",           "dr.patel@medrag.com",  "Orthopaedics"),
+            ("dr.lee@medrag.com",    "dr.lee@medrag.com",    "Gynaecology"),
+            ("dr.evans@medrag.com",  "dr.evans@medrag.com",  "General"),
+            # Expanded specialties
+            ("dr.chen@medrag.com",   "dr.chen@medrag.com",   "Oncology"),
+            ("dr.kumar@medrag.com",  "dr.kumar@medrag.com",  "Hematology"),
+            ("dr.garcia@medrag.com", "dr.garcia@medrag.com", "Nephrology"),
+            ("dr.wilson@medrag.com", "dr.wilson@medrag.com", "Pulmonology"),
+            ("dr.ahmed@medrag.com",  "dr.ahmed@medrag.com",  "Endocrinology"),
+            ("dr.park@medrag.com",   "dr.park@medrag.com",   "Rheumatology"),
+            ("dr.taylor@medrag.com", "dr.taylor@medrag.com", "Gastroenterology"),
+            ("dr.brown@medrag.com",  "dr.brown@medrag.com",  "Infectious Disease"),
+            ("dr.kim@medrag.com",    "dr.kim@medrag.com",    "Dermatology"),
+            ("dr.singh@medrag.com",  "dr.singh@medrag.com",  "Ophthalmology"),
+            ("dr.martinez@medrag.com","dr.martinez@medrag.com","ENT / Otolaryngology"),
+            ("dr.nguyen@medrag.com", "dr.nguyen@medrag.com", "Urology"),
+            ("dr.ali@medrag.com",    "dr.ali@medrag.com",    "Obstetrics"),
+            ("dr.thomas@medrag.com", "dr.thomas@medrag.com", "Pediatrics"),
+            ("dr.white@medrag.com",  "dr.white@medrag.com",  "Psychiatry"),
+            ("dr.clark@medrag.com",  "dr.clark@medrag.com",  "Emergency Medicine"),
+            ("dr.moore@medrag.com",  "dr.moore@medrag.com",  "Dental / Oral Surgery"),
+            ("dr.hall@medrag.com",   "dr.hall@medrag.com",   "Radiology"),
+            ("dr.scott@medrag.com",  "dr.scott@medrag.com",  "Anesthesiology"),
+            ("dr.adams@medrag.com",  "dr.adams@medrag.com",  "Pathology"),
+            ("dr.baker@medrag.com",  "dr.baker@medrag.com",  "Neurosurgery"),
+            ("dr.wright@medrag.com", "dr.wright@medrag.com", "Plastic Surgery"),
+            ("dr.king@medrag.com",   "dr.king@medrag.com",   "Vascular Surgery"),
+            ("dr.hill@medrag.com",   "dr.hill@medrag.com",   "Geriatrics"),
+            ("dr.green@medrag.com",  "dr.green@medrag.com",  "Palliative Care"),
+        ]
+
+        doctor_objects = []
+        for username, email, specialty in DOCTORS:
+            doc = User(
+                username=username, email=email,
+                hashed_password=password_hash,
+                role="doctor", specialty=specialty
+            )
+            doctor_objects.append(doc)
+
+        db.add_all(doctor_objects)
         await db.flush()
-        print(f"✅ Seeded 5 doctors")
+        # Map named references for patient assignment below
+        doc1, doc2, doc3, doc4, doc5 = doctor_objects[:5]
+        print(f"✅ Seeded {len(doctor_objects)} doctors across {len(DOCTORS)} specialties")
 
         # ── PATIENT USER ACCOUNTS ──
         pat_user1 = User(username="john.doe@email.com", email="john.doe@email.com",
@@ -220,20 +255,17 @@ async def seed():
 
         await db.commit()
         print("\n🎉 Database seeding complete!")
-        print("\n📋 Demo Credentials:")
-        print("   Doctors:")
-        print("     dr.smith@medrag.com / password123")
-        print("     dr.jones@medrag.com / password123")
-        print("     1234567890 / password123")
-        print("     dr.lee@medrag.com / password123")
-        print("     dr.evans@medrag.com / password123")
+        print(f"\n📋 Demo Credentials (all passwords: password123):")
+        print(f"   Doctors ({len(DOCTORS)} total):")
+        for username, email, specialty in DOCTORS:
+            print(f"     {username:<30s} [{specialty}]")
         print("   Patients:")
-        print("     john.doe@email.com / password123")
-        print("     jane.smith@email.com / password123")
-        print("     0987654321 / password123")
-        print("     alice.w@email.com / password123")
-        print("     mike.t@email.com / password123")
-        print("     sarah.c@email.com / password123")
+        print("     john.doe@email.com")
+        print("     jane.smith@email.com")
+        print("     0987654321")
+        print("     alice.w@email.com")
+        print("     mike.t@email.com")
+        print("     sarah.c@email.com")
 
 
 if __name__ == "__main__":

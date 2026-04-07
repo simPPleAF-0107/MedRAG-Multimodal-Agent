@@ -69,9 +69,13 @@ class ReportScreen extends StatelessWidget {
   }
 
   Widget _buildActiveReport(BuildContext context, Map<String, dynamic> report) {
-    final confidence = (report['confidence_calibration']?['overall_confidence'] ?? 0).toDouble();
-    final finalReportText = report['final_report'] ?? report['diagnosis_reasoning'] ?? 'No synthesis available.';
-    final evidence = report['retrieved_context_used'] ?? 'No vector context returned.';
+    // Backend returns confidence_score as 0.0-1.0 float; convert to percentage
+    final rawConf = report['confidence_score'] ?? report['confidence_calibration']?['overall_confidence'] ?? 0;
+    final confidence = (rawConf is double && rawConf <= 1.0)
+        ? rawConf * 100
+        : (rawConf as num).toDouble();
+    final finalReportText = report['final_report'] ?? report['diagnosis'] ?? report['diagnosis_reasoning'] ?? 'No synthesis available.';
+    final evidence = report['retrieved_context_used'] ?? report['evidence'] ?? 'No vector context returned.';
     final isHighConf = confidence > 70;
 
     return Column(
@@ -147,10 +151,13 @@ class ReportScreen extends StatelessWidget {
   }
 
   Widget _buildReportListItem(BuildContext context, Map<String, dynamic> r, ReportProvider provider, bool isActive, int index) {
-    final confidence = (r['confidence_calibration']?['overall_confidence'] ?? 0).toDouble();
-    final summary = r['final_report'] ?? r['diagnosis_reasoning'] ?? 'Pending...';
-    final title = r['title'] ?? 'Report ${index + 1}';
-    final date = r['date'] ?? 'Unknown date';
+    final rawConf = r['confidence_score'] ?? r['confidence_calibration']?['overall_confidence'] ?? 0;
+    final confidence = (rawConf is double && rawConf <= 1.0)
+        ? rawConf * 100
+        : (rawConf as num).toDouble();
+    final summary = r['final_report'] ?? r['diagnosis'] ?? r['diagnosis_reasoning'] ?? 'Pending...';
+    final title = r['title'] ?? r['chief_complaint'] ?? 'Report ${index + 1}';
+    final date = r['date'] ?? r['created_at'] ?? 'Unknown date';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

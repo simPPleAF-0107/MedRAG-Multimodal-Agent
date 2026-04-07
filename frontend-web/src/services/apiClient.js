@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create a global Axios instance to point to the FastAPI backend
 const api = axios.create({
     baseURL: 'http://localhost:8000/api/v1',
-    timeout: 60000, 
+    timeout: 600000, // 10 minutes — RAG pipeline can take several minutes
     headers: {
         'Content-Type': 'application/json',
     },
@@ -34,10 +34,19 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         console.error("API Error Response:", error.response);
-        // If 401 Unauthorized, clear session and redirect to login
+        // If 401 Unauthorized, clear session and redirect to login.
+        // This covers both expired real tokens AND stale mock-auth sessions.
         if (error.response && error.response.status === 401) {
+            const user = localStorage.getItem('user');
+            if (user) {
+                try {
+                    const parsed = JSON.parse(user);
+                    if (!parsed.access_token) {
+                        console.warn('Session has no real JWT token. Redirecting to login for proper authentication.');
+                    }
+                } catch (e) { /* ignore */ }
+            }
             localStorage.removeItem('user');
-            // Don't redirect if already on login page
             if (!window.location.pathname.includes('/login')) {
                 window.location.href = '/login';
             }

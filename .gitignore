@@ -1,4 +1,49 @@
+# ═══ Secrets ═══
 .env
+.env.*
+*.env
+
+# ═══ Python ═══
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ═══ Database ═══
+medrag.db
+*.db
+
+# ═══ Vector Store (large binary files) ═══
+vector-db/
+
+# ═══ Node / Web Frontend ═══
+node_modules/
+frontend-web/node_modules/
+
+# ═══ Flutter / Mobile ═══
+mobile_app/.dart_tool/
+mobile_app/build/
+mobile_app/.flutter-plugins
+mobile_app/.flutter-plugins-dependencies
+
+# ═══ Uploads & Data ═══
+data/uploads/
+
+# ═══ Logs ═══
 *.log
 logs/
 backend/logs/
+
+# ═══ IDE ═══
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ═══ OS ═══
+.DS_Store
+Thumbs.db
+desktop.ini

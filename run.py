@@ -3,60 +3,85 @@ import sys
 import os
 import time
 
-def main():
-    print("====================================")
-    print("      Starting MedRAG System        ")
-    print("====================================")
-    print("\n[1/2] Starting MedRAG Backend (FastAPI)...")
-    
-    # Using shell=True so we don't have to worry about .cmd extension mapping on Windows
-    backend_process = subprocess.Popen(
-        "uvicorn backend.main:app --reload",
-        shell=True,
-    )
+ROOT = os.path.dirname(os.path.abspath(__file__))
 
-    # Let the backend initialize
-    time.sleep(3)
-    
-    print("\n" + "="*40)
-    print("Which frontend platform would you like to run?")
-    print("1. Web Frontend (React/Vite)")
-    print("2. Mobile Frontend (Flutter)")
-    print("====================================")
-    
-    choice = input("Enter 1 or 2: ").strip()
-    
-    frontend_process = None
-    
-    print("\n[2/2] Starting Frontend...")
-    if choice == '1':
-        print("-> Launching Web App via 'npm run dev' ...")
-        frontend_process = subprocess.Popen(
+def ask(prompt, options):
+    """Ask a numbered question and return the validated choice."""
+    while True:
+        choice = input(prompt).strip()
+        if choice in options:
+            return choice
+        print(f"  Invalid choice. Please enter one of: {', '.join(options)}")
+
+def main():
+    print("=" * 44)
+    print("        MedRAG System Launcher           ")
+    print("=" * 44)
+
+    # ── Collect all choices BEFORE starting anything ──
+    print("\nWhich frontend platform would you like to run?")
+    print("  1. Web Frontend  (React / Vite)")
+    print("  2. Mobile App    (Flutter)")
+    print("  3. Backend only")
+    frontend_choice = ask("Enter 1, 2, or 3: ", ["1", "2", "3"])
+
+    flutter_device = None
+    if frontend_choice == "2":
+        print("\nWhich device for Flutter?")
+        print("  1. Windows (desktop)")
+        print("  2. Chrome  (web)")
+        print("  3. Edge    (web)")
+        dev_choice = ask("Enter 1, 2, or 3: ", ["1", "2", "3"])
+        flutter_device = {
+            "1": "windows",
+            "2": "chrome",
+            "3": "edge",
+        }[dev_choice]
+
+    # ── Start Backend ──
+    print("\n[1/2] Starting MedRAG Backend (FastAPI)…")
+    # Use --no-reload on Windows to avoid "Terminate batch job?" prompt
+    backend = subprocess.Popen(
+        f'"{sys.executable}" -m uvicorn backend.main:app --host 127.0.0.1 --port 8000',
+        shell=True,
+        cwd=ROOT,
+    )
+    print("      Backend starting on http://127.0.0.1:8000")
+    time.sleep(4)  # Give it a moment to initialise
+
+    # ── Start Frontend ──
+    frontend = None
+    if frontend_choice == "1":
+        print("\n[2/2] Launching Web Frontend (npm run dev)…")
+        frontend = subprocess.Popen(
             "npm run dev",
-            shell=True
+            shell=True,
+            cwd=ROOT,
         )
-    elif choice == '2':
-        print("-> Launching Mobile App via 'flutter run' ...")
-        frontend_process = subprocess.Popen(
-            "flutter run",
-            cwd="mobile_app",
-            shell=True
+    elif frontend_choice == "2":
+        print(f"\n[2/2] Launching Flutter on {flutter_device}…")
+        frontend = subprocess.Popen(
+            f"flutter run -d {flutter_device}",
+            shell=True,
+            cwd=os.path.join(ROOT, "mobile_app"),
         )
-    else:
-        print("Invalid choice, continuing with only backend running.")
-        
-    print("\n[System] All requested services are starting!")
-    print("[System] Press Ctrl+C at any time to shut down the processes.")
-    
+
+    print("\n" + "=" * 44)
+    print("  All services running. Press Ctrl+C to stop.")
+    print("=" * 44 + "\n")
+
     try:
-        if frontend_process:
-            frontend_process.wait()
-        backend_process.wait()
+        if frontend:
+            frontend.wait()
+        backend.wait()
     except KeyboardInterrupt:
-        print("\nShutting down MedRAG services...")
-        backend_process.terminate()
-        if frontend_process:
-            frontend_process.terminate()
+        print("\n\nShutting down MedRAG services…")
+        if frontend and frontend.poll() is None:
+            frontend.terminate()
+        if backend.poll() is None:
+            backend.terminate()
+        # Give processes a moment to exit
+        time.sleep(1)
         sys.exit(0)
 
 if __name__ == "__main__":
