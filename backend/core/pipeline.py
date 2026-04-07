@@ -40,6 +40,7 @@ class CorePipeline:
             "image": image,
             "evidence_text": "",
             "evidence_image": "",
+            "retrieval_scores": [],
             "diagnosis": "",
             "hallucination_score": 0.0,
             "risk_score": 0,

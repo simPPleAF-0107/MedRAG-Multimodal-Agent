@@ -4,9 +4,6 @@ import axios from 'axios';
 const api = axios.create({
     baseURL: 'http://localhost:8000/api/v1',
     timeout: 600000, // 10 minutes — RAG pipeline can take several minutes
-    headers: {
-        'Content-Type': 'application/json',
-    },
 });
 
 // ── AUTH TOKEN INTERCEPTOR ──

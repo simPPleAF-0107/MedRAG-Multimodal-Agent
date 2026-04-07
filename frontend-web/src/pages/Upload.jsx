@@ -22,7 +22,6 @@ const Upload = () => {
         try {
             const formData = new FormData();
             formData.append('query', symptoms || "Analyze the provided image context.");
-            formData.append('patient_id', "1"); // Stub
             
             // Append multiple files natively
             files.forEach(f => {

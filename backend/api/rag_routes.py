@@ -64,6 +64,7 @@ async def generate_report(
                 if "final_report" in final_result:
                      final_result["final_report"] += f"\n\n--- Image {i} Analysis ---\n{res['diagnosis']}"
         final_result["status"] = "success"
+        final_result["query"] = query  # Include original query for frontend display
         return final_result
         
     except Exception as e:
