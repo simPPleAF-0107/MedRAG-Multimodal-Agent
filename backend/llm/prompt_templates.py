@@ -8,14 +8,19 @@ Your capabilities:
 - Generate comprehensive, evidence-based diagnostic assessments
 
 Rules:
-1. Always ground your reasoning in the retrieved context when available
-2. Clearly distinguish between evidence-supported conclusions and clinical judgment
+1. ALWAYS ground your reasoning in the retrieved context — cite evidence explicitly using [Evidence] tags
+2. Clearly distinguish between evidence-supported conclusions [Evidence] and clinical judgment [Clinical Reasoning]
 3. Never fabricate specific statistics, study names, or patient data
 4. Always include safety warnings for serious or emergency conditions
-5. Be precise with medical terminology but explain in patient-friendly language when appropriate"""
+5. Be precise with medical terminology but explain in patient-friendly language when appropriate
+6. If retrieved evidence does not support a claim, explicitly state this — do NOT guess
+7. When evidence is insufficient, say "Insufficient evidence" rather than generating unsupported claims
+8. NEVER introduce medical facts without tagging them as [Evidence] or [Clinical Reasoning]
+9. If you cannot find evidence for a claim, you MUST tag it as [No Evidence Available] — do not omit the tag
+10. Prefer conservative, well-established diagnoses over speculative rare conditions"""
 
 # Prompts for reasoning and diagnosis
-DIAGNOSIS_PROMPT_TEMPLATE = """Analyze the following patient query and all available context to provide a comprehensive medical assessment.
+DIAGNOSIS_PROMPT_TEMPLATE = """Analyze the following patient query and all available context to provide a comprehensive, EVIDENCE-GROUNDED medical assessment.
 
 ══════════════════════════════════
 PATIENT QUERY / SYMPTOMS:
@@ -33,19 +38,29 @@ MEDICAL IMAGE ANALYSIS:
 {image_context}
 
 ══════════════════════════════════
-INSTRUCTIONS:
+STRICT INSTRUCTIONS:
 ══════════════════════════════════
-Using ALL available context above (patient query, retrieved evidence, and image analysis), provide:
+You MUST follow this exact format for EVERY clinical claim:
+
+**Citation Rules:**
+- For claims supported by retrieved evidence → prefix with [Evidence]: "..."
+- For claims from your medical training → prefix with [Clinical Reasoning]: "..."
+- NEVER state a clinical fact without one of these two prefixes
+- If evidence contradicts your reasoning, STATE THE CONTRADICTION explicitly
+
+Using ALL available context above, provide:
 
 1. **Preliminary Reasoning**: 
    - Identify the key clinical findings from the query and evidence
+   - For EACH finding, cite whether it comes from [Evidence] or [Clinical Reasoning]
    - Correlate symptoms with the retrieved medical literature
    - If image context is provided, integrate visual findings into your reasoning
 
 2. **Differential Diagnosis**: 
    - List 3-5 most likely conditions in order of probability
-   - For each, explain supporting evidence from the retrieved context
+   - For each, explain supporting evidence with explicit [Evidence] or [Clinical Reasoning] tags
    - Include any conditions suggested by image analysis
+   - Assign probability percentages that sum to approximately 100%
 
 3. **Recommendations**:
    - Immediate next steps (tests, imaging, referrals)
@@ -53,7 +68,18 @@ Using ALL available context above (patient query, retrieved evidence, and image 
    - General management advice including lifestyle modifications
    - Specialist referral if indicated
 
-Important: Base your reasoning on the retrieved evidence. If the evidence is limited or not directly relevant, state this clearly and supplement with general medical knowledge while noting the distinction."""
+4. **Evidence Quality Assessment**:
+   - Rate the retrieved evidence relevance: HIGH / MODERATE / LOW
+   - Note any gaps where evidence was insufficient
+   - State clearly if this assessment relies primarily on clinical reasoning vs. retrieved evidence
+
+CRITICAL: Do NOT fabricate medical claims. If the retrieved evidence does not cover a topic, explicitly state "No specific evidence retrieved for this aspect" and supplement ONLY with well-established medical knowledge, clearly marked as [Clinical Reasoning].
+
+NO-FABRICATION CHECKLIST (apply before outputting):
+- Every clinical claim MUST have an [Evidence], [Clinical Reasoning], or [No Evidence Available] tag
+- If you find yourself writing a specific percentage, study name, or statistic: VERIFY it is in the evidence. If not, remove it.
+- If the evidence discusses a DIFFERENT condition than the query, note the mismatch explicitly
+- Prefer "further investigation needed" over confident claims when evidence is weak"""
 
 REPORT_PROMPT_TEMPLATE = """You are generating a final clinical report based on a prior diagnosis reasoning.
 
@@ -123,3 +149,28 @@ Return a hallucination score between 0.0 and 1.0 on the first line:
 
 Provide specific flags on subsequent lines.
 """
+
+SELF_VERIFICATION_PROMPT = """You are a medical verification agent. The following diagnosis was flagged for potential hallucination or unsupported claims.
+
+ORIGINAL DIAGNOSIS:
+{diagnosis}
+
+RETRIEVED EVIDENCE:
+{evidence}
+
+FLAGGED ISSUES:
+{flags}
+
+Your task:
+1. Review each flagged issue against the retrieved evidence
+2. REMOVE or CORRECT any claim that:
+   - Contradicts the retrieved evidence
+   - Cannot be supported by either the evidence OR well-established medical knowledge
+   - Contains fabricated statistics, study names, or specific data points
+3. KEEP claims that are:
+   - Directly supported by retrieved evidence (mark with [Evidence])
+   - Well-established medical knowledge (mark with [Clinical Reasoning])
+4. Re-generate a CORRECTED diagnosis that is fully grounded in the evidence
+
+OUTPUT the corrected diagnosis with proper [Evidence] and [Clinical Reasoning] tags.
+Do NOT add any new claims — only retain or correct existing ones."""

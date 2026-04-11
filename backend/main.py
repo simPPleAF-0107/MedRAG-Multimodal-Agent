@@ -7,7 +7,7 @@ from backend.database.db import init_db
 from backend.api import (
     rag_routes, patient_routes, upload_routes, chat_routes, 
     system_routes, voice_routes, reminder_routes, auth_routes, 
-    vitals_routes, appointment_routes, notification_routes
+    vitals_routes, appointment_routes, notification_routes, tracker_routes
 )
 from backend.reminders.scheduler import reminder_scheduler
 from backend.utils.logger import logger
@@ -32,10 +32,17 @@ app = FastAPI(
 )
 
 # CORS configuration
+# Use explicit localhost origins in dev so Authorization headers are not stripped.
+# allow_credentials=True requires named origins (not wildcard).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Update for production
-    allow_credentials=False,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",   # Vite fallback port
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -52,6 +59,7 @@ app.include_router(reminder_routes.router, prefix=settings.API_V1_STR)
 app.include_router(vitals_routes.router, prefix=settings.API_V1_STR)
 app.include_router(appointment_routes.router, prefix=settings.API_V1_STR)
 app.include_router(notification_routes.router, prefix=settings.API_V1_STR)
+app.include_router(tracker_routes.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
@@ -60,3 +68,11 @@ def root():
         "docs": "/docs",
         "health": "ok"
     }
+
+@app.get("/api/v1/health", tags=["devops"])
+def health_check():
+    """
+    Lightweight health-check endpoint for the frontend sidebar ping.
+    Returns 200 immediately — no DB query needed.
+    """
+    return {"status": "ok", "service": "MedRAG API"}

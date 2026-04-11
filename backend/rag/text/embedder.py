@@ -1,5 +1,5 @@
-from sentence_transformers import SentenceTransformer
 from backend.config import settings
+from sentence_transformers import SentenceTransformer
 import asyncio
 
 class TextEmbedder:

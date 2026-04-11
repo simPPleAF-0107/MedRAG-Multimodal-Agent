@@ -5,7 +5,7 @@ from typing import Optional
 from backend.database.db import get_db
 from backend.core.pipeline import core_pipeline
 from backend.rag.image.image_processor import image_processor
-from backend.api.deps import get_current_doctor, get_current_active_user
+from backend.api.deps import get_current_doctor, get_current_active_user, get_optional_user
 from backend.database.models import User
 
 router = APIRouter(
@@ -20,7 +20,7 @@ async def generate_report(
     query: str = Form(...),
     files: List[UploadFile] = File([]),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: Optional[User] = Depends(get_optional_user)  # soft-auth: works with demo-bypass
 ):
     """
     Generate a diagnosis report given a medical text query and multiple optional images/texts.

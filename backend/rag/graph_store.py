@@ -15,6 +15,7 @@ class GraphStore:
         self.graph_path = os.path.join(settings.QDRANT_DB_DIR, "knowledge_graph.json")
         self.graph = nx.DiGraph()
         self._node_index = {}  # Cached lowercase -> original node mapping
+        self._bulk_mode = False  # When True, defers save_graph() for batch performance
         self.load_graph()
 
     def load_graph(self):
@@ -47,6 +48,19 @@ class GraphStore:
         except Exception as e:
             logger.error(f"Failed to save graph: {e}")
 
+    def set_bulk_mode(self, enabled: bool):
+        """Enable/disable bulk mode. In bulk mode, save_graph() is deferred for batch performance."""
+        self._bulk_mode = enabled
+        if not enabled:
+            # Leaving bulk mode — flush to disk and rebuild index
+            self.save_graph()
+            self._build_node_index()
+
+    def flush(self):
+        """Force-save the graph to disk and rebuild the index (useful after bulk inserts)."""
+        self.save_graph()
+        self._build_node_index()
+
     def add_relationship(self, source: str, relation: str, target: str, attributes: dict = None):
         source = source.lower().strip()
         target = target.lower().strip()
@@ -59,9 +73,10 @@ class GraphStore:
         attr = attributes or {}
         attr['relation'] = relation
         self.graph.add_edge(source, target, **attr)
-        self.save_graph()
+        if not self._bulk_mode:
+            self.save_graph()
 
-    def _find_matching_nodes(self, query_terms: list[str], max_matches: int = 20) -> set:
+    def _find_matching_nodes(self, query_terms: list[str], max_matches: int = 10) -> set:
         """Find graph nodes that match query terms using the keyword index."""
         matched = set()
         for term in query_terms:
@@ -81,12 +96,13 @@ class GraphStore:
                 
         return matched
 
-    def query_subgraph(self, starting_nodes: list[str], max_depth: int = 2) -> dict:
+    def query_subgraph(self, starting_nodes: list[str], max_depth: int = 2, max_total_relations: int = 100) -> dict:
         """
         Enhanced subgraph query with:
         1. Fuzzy node matching via keyword index
         2. Multi-hop traversal (up to max_depth)
         3. Bidirectional edge traversal (both successors and predecessors)
+        4. Hard total relation cap to prevent LLM context overflow
         """
         results = {}
         
@@ -99,8 +115,13 @@ class GraphStore:
             for n in self.graph.nodes():
                 if node in n:
                     matched_nodes.add(n)
+                    if len(matched_nodes) >= 20:  # Hard cap on matched nodes
+                        break
         
+        total_relations = 0
         for m_node in matched_nodes:
+            if total_relations >= max_total_relations:
+                break
             if m_node not in results:
                 results[m_node] = []
                 
@@ -109,6 +130,8 @@ class GraphStore:
                 current_level = [m_node]
                 
                 for depth in range(max_depth):
+                    if total_relations >= max_total_relations:
+                        break
                     next_level = []
                     for node in current_level:
                         # Forward edges (successors)
@@ -123,6 +146,7 @@ class GraphStore:
                                 })
                                 visited.add(n)
                                 next_level.append(n)
+                                total_relations += 1
                         
                         # Backward edges (predecessors) — find what points TO this node
                         for n in self.graph.predecessors(node):
@@ -136,14 +160,15 @@ class GraphStore:
                                 })
                                 visited.add(n)
                                 next_level.append(n)
+                                total_relations += 1
                     
                     current_level = next_level
                     if not current_level:
                         break
         
-        # Limit total results to prevent context overflow
+        # Per-node limit as secondary safeguard
         for key in results:
-            results[key] = results[key][:15]
+            results[key] = results[key][:10]
             
         logger.info(f"GraphRAG query: {len(starting_nodes)} terms -> {len(matched_nodes)} nodes -> {sum(len(v) for v in results.values())} relations")
         return results

@@ -1,147 +1,187 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Stethoscope, FileText, CheckCircle2, ChevronRight, Activity } from 'lucide-react';
+import {
+    Image as ImageIcon, FileText, Mic, Brain, ChevronRight, Stethoscope
+} from 'lucide-react';
 import { generateReport } from '../services/apiClient';
-import UploadBox from '../components/UploadBox';
-import { motion } from 'framer-motion';
+import ScanningCard from '../components/ScanningCard';
+import { motion, AnimatePresence } from 'framer-motion';
 
+// ── Step indicator ────────────────────────────────────────────────────────
+const Step = ({ n, label, active, done }) => (
+    <div className="flex items-center gap-2" style={{ color: active || done ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+            style={done
+                ? { background: 'var(--success)', color: '#fff' }
+                : active
+                    ? { color: 'var(--primary)', border: '2px solid var(--primary)' }
+                    : { border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            {done ? '✓' : n}
+        </div>
+        <span className={`text-xs font-medium hidden sm:block`}
+            style={{ color: active ? 'var(--text-primary)' : done ? 'var(--success)' : 'var(--text-muted)' }}>{label}</span>
+    </div>
+);
+
+const Divider = ({ active }) => (
+    <div className="flex-1 h-px mx-2" style={{ background: active ? 'var(--primary)' : 'var(--border)' }} />
+);
+
+// ── Upload page ───────────────────────────────────────────────────────────
 const Upload = () => {
     const navigate = useNavigate();
-    const [files, setFiles] = useState([]);
-    const [symptoms, setSymptoms] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [step, setStep] = useState(1);
+    const [files, setFiles]       = useState([]);
+    const [symptoms, setSymptoms] = useState('');
+    const [loading, setLoading]   = useState(false);
+    const [step, setStep]         = useState(1);
+
+    const addFile = (f) => {
+        if (!f) return;
+        const arr = Array.isArray(f) ? f : [f];
+        setFiles(prev => [...prev, ...arr]);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!symptoms.trim() && files.length === 0) return;
-
         setLoading(true);
-        setStep(2); // Analyzing State
-
+        setStep(2);
         try {
             const formData = new FormData();
-            formData.append('query', symptoms || "Analyze the provided image context.");
-            
-            // Append multiple files natively
-            files.forEach(f => {
-                formData.append('files', f);
-            });
-
-            // Real API call to trigger report generation
+            formData.append('query', symptoms || 'Analyze the provided clinical context.');
+            files.forEach(f => formData.append('files', f));
             const res = await generateReport(formData);
-
-            // Pass data to reports page via local storage or state management (using simple localStorage for prototype)
             localStorage.setItem('lastReport', JSON.stringify(res.data));
-
-            setStep(3); // Complete State
-            setTimeout(() => {
-                navigate('/reports');
-            }, 1000);
-
-        } catch (error) {
-            console.error("Pipeline Failed:", error);
-            alert("Pipeline Execution Failed. Ensure backend is running.");
+            setStep(3);
+            setTimeout(() => navigate('/reports'), 1200);
+        } catch (err) {
+            console.error('Pipeline failed:', err);
+            alert('Pipeline execution failed. Ensure the backend is running.');
             setLoading(false);
             setStep(1);
         }
     };
 
     return (
-        <div className="max-w-3xl mx-auto py-8 animate-fade-in">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} className="max-w-4xl mx-auto pb-12">
+
+            {/* Header */}
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white tracking-tight">Diagnostic Inference Engine</h1>
-                <p className="text-slate-400 mt-2">Trigger the Multimodal RAG pipeline by providing clinical context below.</p>
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2.5 rounded-xl" style={{ background: 'rgba(58,12,163,0.08)', border: '1px solid rgba(58,12,163,0.15)' }}>
+                        <Stethoscope size={20} style={{ color: 'var(--primary)' }} />
+                    </div>
+                    <h1 className="heading-lg">Diagnostic Inference Engine</h1>
+                </div>
+                <p className="text-sm ml-14" style={{ color: 'var(--text-muted)' }}>
+                    Upload multimodal clinical evidence to trigger the MedRAG pipeline.
+                </p>
             </div>
 
-            <div className="glass-panel border border-white/10 overflow-hidden">
+            {/* Step tracker */}
+            <div className="flex items-center mb-8 px-1">
+                <Step n={1} label="Input Evidence" active={step === 1} done={step > 1} />
+                <Divider active={step >= 2} />
+                <Step n={2} label="Engine Analysis" active={step === 2} done={step > 2} />
+                <Divider active={step >= 3} />
+                <Step n={3} label="Diagnosis" active={step === 3} done={step > 3} />
+            </div>
 
-                {/* Progress Tracker */}
-                <div className="bg-white/5 px-8 py-4 border-b border-white/10 flex items-center justify-between">
-                    <div className={`flex items-center ${step >= 1 ? 'text-brand-500' : 'text-slate-500'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= 1 ? 'bg-brand-500/20 text-brand-400' : 'bg-white/10 text-slate-500'} mr-3`}>1</div>
-                        <span className="font-medium text-sm">Input Pipeline</span>
-                    </div>
-                    <div className="flex-1 h-0.5 bg-white/10 mx-4">
-                        <div className={`h-full bg-brand-500 transition-all ${step >= 2 ? 'w-full' : 'w-0'}`}></div>
-                    </div>
-                    <div className={`flex items-center ${step >= 2 ? 'text-brand-500' : 'text-slate-500'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= 2 ? 'bg-brand-500/20 text-brand-400' : 'bg-white/10 text-slate-500'} mr-3`}>2</div>
-                        <span className="font-medium text-sm">Engine Analysis</span>
-                    </div>
-                    <div className="flex-1 h-0.5 bg-white/10 mx-4">
-                        <div className={`h-full bg-brand-500 transition-all ${step >= 3 ? 'w-full' : 'w-0'}`}></div>
-                    </div>
-                    <div className={`flex items-center ${step >= 3 ? 'text-brand-500' : 'text-slate-500'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= 3 ? 'bg-brand-500/20 text-brand-400' : 'bg-white/10 text-slate-500'} mr-3`}>
-                            {step >= 3 ? <CheckCircle2 size={16} /> : '3'}
-                        </div>
-                        <span className="font-medium text-sm">Diagnosis</span>
-                    </div>
-                </div>
-
+            <AnimatePresence mode="wait">
                 {step === 1 && (
-                    <form onSubmit={handleSubmit} className="p-8 space-y-8">
-                        {/* Symptom Text Input */}
+                    <motion.form key="step1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }} transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                        onSubmit={handleSubmit} className="space-y-6">
+
                         <div>
-                            <label className="flex flex-col">
-                                <span className="text-sm font-semibold text-slate-300 flex items-center mb-1">
-                                    <FileText className="w-4 h-4 mr-2 text-slate-500" />
-                                    Clinical Observations
+                            <p className="label-caps mb-3">Multimodal Evidence Input</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <ScanningCard icon={<ImageIcon />} title="Medical Imaging" subtitle="X-Ray, MRI, CT scans"
+                                    accept="image/*" accentColor="var(--primary)" onFile={addFile} multiple />
+                                <ScanningCard icon={<FileText />} title="EHR / Lab Reports" subtitle="PDF, lab results, notes"
+                                    accept=".pdf,.txt,.doc,.docx" accentColor="var(--success)" onFile={addFile} multiple />
+                                <ScanningCard icon={<Mic />} title="Voice Consultation" subtitle="MP3, WAV audio notes"
+                                    accept=".mp3,.wav,.ogg,.m4a" accentColor="var(--warning)" onFile={addFile} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="label-caps mb-2">Clinical Observations</p>
+                            <div className="relative">
+                                <textarea required={files.length === 0} rows={4}
+                                    placeholder="e.g. Patient presents with sharp lower right quadrant pain, fever of 101.2°F, elevated WBC..."
+                                    className="glass-input resize-none w-full text-sm leading-relaxed"
+                                    value={symptoms} onChange={e => setSymptoms(e.target.value)} />
+                                <span className="absolute bottom-3 right-3 text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                                    {symptoms.length} chars
                                 </span>
-                                <span className="text-xs text-slate-500 mb-3">Include vitals, chief complaint, or relevant physician notes.</span>
-                                <textarea
-                                    required={files.length === 0}
-                                    rows={4}
-                                    placeholder="e.g. Patient presents with sharp lower right quadrant abdominal pain, fever of 101.2F, and elevated WBC."
-                                    className="w-full p-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-white placeholder-slate-500 transition-colors resize-none"
-                                    value={symptoms}
-                                    onChange={(e) => setSymptoms(e.target.value)}
-                                />
-                            </label>
+                            </div>
+                            <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
+                                Include vitals, chief complaint, relevant physician notes, or lab values.
+                            </p>
                         </div>
 
-                        {/* Media Upload */}
-                        <div>
-                            <span className="text-sm font-semibold text-slate-300 flex items-center mb-1">
-                                <Stethoscope className="w-4 h-4 mr-2 text-slate-500" />
-                                Multimodal Evidence (Optional)
-                            </span>
-                            <span className="text-xs text-slate-500 mb-3 block">Attach X-Rays, MRI scans, or PDF lab results.</span>
-                            <UploadBox onFilesSelect={setFiles} />
-                        </div>
+                        {files.length > 0 && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex flex-wrap gap-2">
+                                <span className="label-caps w-full mb-1">Attached ({files.length})</span>
+                                {files.map((f, i) => (<span key={i} className="entity-chip text-[11px]">{f.name}</span>))}
+                            </motion.div>
+                        )}
 
-                        <div className="pt-4 flex justify-end">
-                            <button
-                                type="submit"
-                                disabled={loading || (files.length === 0 && !symptoms.trim())}
-                                className="flex items-center px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium shadow-md shadow-brand-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Execute Pipeline <ChevronRight className="ml-2 w-5 h-5" />
-                            </button>
+                        <div className="flex justify-end pt-2">
+                            <motion.button type="submit" disabled={loading || (!symptoms.trim() && files.length === 0)}
+                                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                                className="btn-primary flex items-center gap-2 disabled:opacity-40 disabled:pointer-events-none">
+                                <Brain size={16} /> Execute Pipeline <ChevronRight size={15} />
+                            </motion.button>
                         </div>
-                    </form>
+                    </motion.form>
                 )}
 
                 {step === 2 && (
-                    <div className="p-16 flex flex-col items-center justify-center text-center">
-                        <div className="relative w-24 h-24 mb-8">
-                            {/* Engine Pulse Animation */}
-                            <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full animate-ping opacity-75"></div>
-                            <div className="absolute inset-2 border-4 border-brand-400 rounded-full animate-spin border-t-transparent shadow-lg shadow-brand-500/30"></div>
-                            <div className="absolute inset-0 flex items-center justify-center text-brand-500">
-                                <Activity size={32} />
+                    <motion.div key="step2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="flex flex-col items-center justify-center py-24 gap-6">
+                        <div className="relative w-24 h-24">
+                            <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'var(--primary)' }} />
+                            <div className="absolute inset-2 rounded-full animate-spin"
+                                style={{ border: '2px solid transparent', borderTopColor: 'var(--primary)', borderRightColor: 'var(--success)' }} />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Brain size={32} className="animate-pulse" style={{ color: 'var(--primary)' }} />
                             </div>
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-2">Analyzing Vectors...</h3>
-                        <p className="text-slate-400 max-w-sm">
-                            MedRAG is concurrently compiling memory graph, retrieving evidence, and generating risk projections.
-                        </p>
-                    </div>
+                        <div className="text-center">
+                            <h3 className="font-bold text-xl mb-2" style={{ color: 'var(--text-primary)' }}>Analyzing Evidence…</h3>
+                            <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
+                                MedRAG is retrieving knowledge graph relations, embedding vectors, and synthesizing the clinical report.
+                            </p>
+                        </div>
+                        <div className="space-y-2 text-left w-64">
+                            {['Hybrid retrieval (dense + BM25)', 'LLM reranking & deduplication', 'GraphRAG subgraph fusion', 'Reasoning agent synthesis', 'Hallucination verification'].map((s, i) => (
+                                <motion.div key={s} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: i * 0.4 }} className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--primary)', animationDelay: `${i * 0.1}s` }} />
+                                    {s}
+                                </motion.div>
+                            ))}
+                        </div>
+                    </motion.div>
                 )}
 
-            </div>
-        </div>
+                {step === 3 && (
+                    <motion.div key="step3" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                        className="flex flex-col items-center py-24 gap-4">
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center"
+                            style={{ background: 'var(--success-bg)', border: '2px solid var(--success)' }}>
+                            <span className="text-2xl">✓</span>
+                        </div>
+                        <p className="font-bold text-lg" style={{ color: 'var(--success)' }}>Diagnosis Complete</p>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Redirecting to your report…</p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
     );
 };
 

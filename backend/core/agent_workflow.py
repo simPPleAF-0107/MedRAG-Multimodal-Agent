@@ -27,6 +27,7 @@ class AgentState(TypedDict):
     retrieval_scores: list  # Real similarity scores from Qdrant
     diagnosis: str
     hallucination_score: float
+    hallucination_flags: list  # Flags from hallucination checker for self-correction
     risk_score: int
     risk_level: str
     emergency_flag: bool
@@ -35,6 +36,8 @@ class AgentState(TypedDict):
     recommendations: dict
     heatmap_path: str
     recommended_specialty: str
+    verification_passed: bool  # Whether self-verify loop passed
+    correction_attempts: int   # Number of self-correction attempts (max 1)
     final_payload: dict
 
 # 1. Retriever Component
@@ -65,8 +68,18 @@ async def retrieve_node(state: AgentState) -> AgentState:
             for node, relations in graph_context.items():
                 for rel in relations:
                     context_str += f"- {node} -> {rel['relation']} -> {rel['target']}\n"
+            # Cap GraphRAG context to ~1K tokens to prevent LLM TPM overflow
+            MAX_GRAPH_CHARS = 5_000
+            if len(context_str) > MAX_GRAPH_CHARS:
+                context_str = context_str[:MAX_GRAPH_CHARS] + "\n... [graph context truncated]\n"
             state["evidence_text"] += context_str
             logger.info("GraphRAG contextual fusion successful.")
+        
+        # Final safety cap: total evidence must not exceed ~3K tokens for the reasoning LLM
+        MAX_EVIDENCE_CHARS = 12_000
+        if len(state["evidence_text"]) > MAX_EVIDENCE_CHARS:
+            state["evidence_text"] = state["evidence_text"][:MAX_EVIDENCE_CHARS] + "\n... [evidence truncated for context limit]"
+            logger.info(f"Evidence text capped at {MAX_EVIDENCE_CHARS} chars to prevent TPM overflow.")
             
     except Exception as e:
         logger.error(f"Evidence retrieval failed: {e}")
@@ -97,7 +110,7 @@ async def guardrails_node(state: AgentState) -> AgentState:
         try: return await detect_hallucination(state.get("diagnosis", ""), state.get("evidence_text", ""))
         except Exception as e:
             logger.error(f"Hallucination check failed: {e}")
-            return 0.3, ["Hallucination check unavailable."]
+            return 0.15, ["Hallucination check unavailable."]
         
     async def run_risk():
         try:
@@ -127,8 +140,10 @@ async def guardrails_node(state: AgentState) -> AgentState:
     # Unpack hallucination result
     if hallucination_res and isinstance(hallucination_res, tuple):
         state["hallucination_score"] = hallucination_res[0]
+        state["hallucination_flags"] = hallucination_res[1] if len(hallucination_res) > 1 else []
     else:
-        state["hallucination_score"] = 0.3
+        state["hallucination_score"] = 0.15
+        state["hallucination_flags"] = []
     
     # Unpack risk result
     if risk_res and isinstance(risk_res, tuple):
@@ -152,14 +167,92 @@ async def guardrails_node(state: AgentState) -> AgentState:
 
     return state
 
-# 4. Final Reporter
+# 4. Self-Verification & Correction Node (NEW)
+async def verify_and_correct_node(state: AgentState) -> AgentState:
+    """
+    If hallucination_score > 0.12, re-reason with correction instructions.
+    Max 2 retries to avoid infinite loops.
+    """
+    hallucination = state.get("hallucination_score", 0.0)
+    attempts = state.get("correction_attempts", 0)
+    
+    if hallucination <= 0.12 or attempts >= 2:
+        # Either hallucination is acceptably low, or we've exhausted retries
+        state["verification_passed"] = (hallucination <= 0.12)
+        if state["verification_passed"]:
+            logger.info("✅ Verification PASSED: hallucination within acceptable range (≤0.12)")
+        else:
+            logger.warning(f"⚠️ Verification: hallucination={hallucination:.2f} after {attempts} correction(s) — proceeding with best result")
+        return state
+    
+    # Hallucination too high — trigger self-correction
+    logger.info(f"🔄 Self-correction triggered: hallucination={hallucination:.2f}, attempt={attempts+1}")
+    
+    from backend.llm.openai_client import openai_client
+    from backend.llm.prompt_templates import SELF_VERIFICATION_PROMPT, MEDICAL_ASSISTANT_SYSTEM_PROMPT
+    
+    flags_text = "\n".join(state.get("hallucination_flags", ["Unsupported claims detected"]))
+    
+    correction_prompt = SELF_VERIFICATION_PROMPT.format(
+        diagnosis=state.get("diagnosis", ""),
+        evidence=state.get("evidence_text", "")[:4000],
+        flags=flags_text
+    )
+    
+    try:
+        corrected_diagnosis = await openai_client.generate_completion(
+            prompt=correction_prompt,
+            system_prompt=MEDICAL_ASSISTANT_SYSTEM_PROMPT,
+            temperature=0.0,   # Fully deterministic for corrections — zero creativity
+            max_tokens=2500,
+            use_cache=False  # Never use cached results for corrections
+        )
+        
+        state["diagnosis"] = corrected_diagnosis
+        state["correction_attempts"] = attempts + 1
+        
+        # Re-check hallucination on the corrected diagnosis
+        try:
+            new_hall_score, new_flags = await detect_hallucination(
+                corrected_diagnosis, state.get("evidence_text", "")
+            )
+            state["hallucination_score"] = new_hall_score
+            state["hallucination_flags"] = new_flags
+            state["verification_passed"] = (new_hall_score <= 0.12)
+            
+            logger.info(f"Self-correction result: hallucination {hallucination:.2f} → {new_hall_score:.2f}")
+        except Exception as e:
+            logger.error(f"Re-check after correction failed: {e}")
+            state["verification_passed"] = False
+            
+    except Exception as e:
+        logger.error(f"Self-correction LLM call failed: {e}")
+        state["verification_passed"] = False
+        state["correction_attempts"] = attempts + 1
+    
+    return state
+
+# 5. Final Reporter
 async def reporter_node(state: AgentState) -> AgentState:
     logger.info("LangGraph Node: Final Report Generation...")
     
     try:
+        # Compute deterministic evidence overlap for the confidence formula
+        from backend.services.confidence_engine import evidence_overlap_score
+        overlap = evidence_overlap_score(
+            state.get("diagnosis", ""),
+            state.get("evidence_text", "")
+        )
+        
         # Use REAL retrieval scores from the vector search, not hardcoded values
         real_scores = state.get("retrieval_scores", [0.5])
-        state["confidence"] = calculate_confidence(real_scores, state.get("hallucination_score", 0.0))
+        verification_passed = state.get("verification_passed", False)
+        state["confidence"] = calculate_confidence(
+            real_scores, 
+            state.get("hallucination_score", 0.0),
+            verification_passed=verification_passed,
+            evidence_overlap=overlap
+        )
     except: state["confidence"] = 0.0
     
     try:
@@ -226,21 +319,25 @@ async def reporter_node(state: AgentState) -> AgentState:
         "final_report": report_generator.format_final_report(state),
         "confidence_calibration": {"overall_confidence": state.get("confidence", 0.0)},
         "risk_assessment": {"risk_score": state.get("risk_score", 0), "risk_level": state.get("risk_level", "Unknown")},
+        "verification_passed": state.get("verification_passed", False),
+        "correction_attempts": state.get("correction_attempts", 0),
     }
     return state
 
-# Setup LangGraph Workflow
+# Setup LangGraph Workflow with Verify-and-Correct Loop
 workflow = StateGraph(AgentState)
 
 workflow.add_node("retrieve", retrieve_node)
 workflow.add_node("reasoning", reasoning_node)
 workflow.add_node("guardrails", guardrails_node)
+workflow.add_node("verify_and_correct", verify_and_correct_node)
 workflow.add_node("reporter", reporter_node)
 
 workflow.set_entry_point("retrieve")
 workflow.add_edge("retrieve", "reasoning")
 workflow.add_edge("reasoning", "guardrails")
-workflow.add_edge("guardrails", "reporter")
+workflow.add_edge("guardrails", "verify_and_correct")
+workflow.add_edge("verify_and_correct", "reporter")
 workflow.add_edge("reporter", END)
 
 medrag_agent = workflow.compile()

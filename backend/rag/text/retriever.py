@@ -105,7 +105,7 @@ class TextRetriever:
         logger.info(f"Retrieval: {len(dense_results)} dense + {len(sparse_results)} sparse results")
         
         # Step 4: Reciprocal Rank Fusion (RRF)
-        rrf_k = 60
+        rrf_k = 45  # Lower = more weight to top-ranked docs (was 60)
         fused_scores = {}
         chunk_map = {}
         

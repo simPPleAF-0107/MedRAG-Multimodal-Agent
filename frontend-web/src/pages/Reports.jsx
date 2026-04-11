@@ -1,346 +1,336 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    FileText, ShieldCheck, ShieldAlert, Activity, GitCommit, Search, List,
-    AlertTriangle, Star, Stethoscope, BookOpen, ChevronDown, ChevronUp
+    FileText, ShieldCheck, ShieldAlert, Activity, Search,
+    AlertTriangle, Star, Stethoscope, BookOpen,
+    ChevronDown, ChevronUp, Network, Download
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import RiskScoreCard from '../components/RiskScoreCard';
+import ConfidenceBadge from '../components/ConfidenceBadge';
+import KnowledgeGraphOverlay from '../components/KnowledgeGraphOverlay';
+import toast from 'react-hot-toast';
 
-// Simple markdown-to-JSX renderer for medical reports
+// ── Inline markdown renderer (light theme) ────────────────────────────────
 const MarkdownRenderer = ({ text }) => {
     if (!text) return null;
-
     const lines = text.split('\n');
-    const elements = [];
-    let i = 0;
-
-    while (i < lines.length) {
-        const line = lines[i];
-
-        // Headers
-        if (line.startsWith('### ')) {
-            elements.push(<h4 key={i} className="text-base font-bold text-brand-400 mt-5 mb-2">{renderInline(line.slice(4))}</h4>);
-        } else if (line.startsWith('## ')) {
-            elements.push(<h3 key={i} className="text-lg font-bold text-white mt-6 mb-3 border-b border-white/10 pb-2">{renderInline(line.slice(3))}</h3>);
-        } else if (line.startsWith('# ')) {
-            elements.push(<h2 key={i} className="text-xl font-bold text-white mt-6 mb-3">{renderInline(line.slice(2))}</h2>);
+    const renderInline = (t) => {
+        if (!t) return t;
+        const parts = []; let rem = t, k = 0;
+        while (rem.length > 0) {
+            const b = rem.match(/\*\*(.+?)\*\*/);
+            if (b && b.index !== undefined) {
+                if (b.index > 0) parts.push(rem.slice(0, b.index));
+                parts.push(<strong key={k++} className="font-semibold" style={{ color: 'var(--text-primary)' }}>{b[1]}</strong>);
+                rem = rem.slice(b.index + b[0].length); continue;
+            }
+            parts.push(rem); break;
         }
-        // Horizontal rule
-        else if (line.trim() === '---') {
-            elements.push(<hr key={i} className="border-white/10 my-4" />);
-        }
-        // List items
-        else if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
-            const indent = line.search(/\S/);
-            const content = line.trim().slice(2);
-            elements.push(
-                <div key={i} className={`flex items-start gap-2 mb-1 ${indent > 2 ? 'ml-6' : 'ml-2'}`}>
-                    <span className="text-brand-500 mt-1.5 text-xs">●</span>
-                    <span className="text-slate-300 leading-relaxed">{renderInline(content)}</span>
-                </div>
-            );
-        }
-        // Numbered items
-        else if (/^\d+\.\s/.test(line.trim())) {
-            const content = line.trim().replace(/^\d+\.\s/, '');
-            const num = line.trim().match(/^(\d+)\./)?.[1];
-            elements.push(
-                <div key={i} className="flex items-start gap-3 mb-2 ml-2">
-                    <span className="text-brand-400 font-bold text-sm min-w-[20px]">{num}.</span>
-                    <span className="text-slate-300 leading-relaxed">{renderInline(content)}</span>
-                </div>
-            );
-        }
-        // Empty line = paragraph break
-        else if (line.trim() === '') {
-            elements.push(<div key={i} className="h-2" />);
-        }
-        // Regular paragraph
-        else {
-            elements.push(<p key={i} className="text-slate-300 leading-relaxed mb-2">{renderInline(line)}</p>);
-        }
-        i++;
-    }
-    return <>{elements}</>;
+        return parts;
+    };
+    return (
+        <>
+            {lines.map((line, i) => {
+                if (line.startsWith('### ')) return <h4 key={i} className="text-sm font-bold mt-4 mb-1.5" style={{ color: 'var(--primary)' }}>{renderInline(line.slice(4))}</h4>;
+                if (line.startsWith('## '))  return <h3 key={i} className="text-base font-bold mt-5 mb-2 pb-1.5" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border)' }}>{renderInline(line.slice(3))}</h3>;
+                if (line.startsWith('# '))   return <h2 key={i} className="text-lg font-bold mt-5 mb-2" style={{ color: 'var(--text-primary)' }}>{renderInline(line.slice(2))}</h2>;
+                if (line.trim() === '---')   return <hr key={i} className="my-4" style={{ borderColor: 'var(--border)' }} />;
+                if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+                    return (
+                        <div key={i} className="flex items-start gap-2 mb-1 ml-2">
+                            <span className="mt-1.5 text-[10px] shrink-0" style={{ color: 'var(--primary)' }}>◆</span>
+                            <span className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{renderInline(line.trim().slice(2))}</span>
+                        </div>
+                    );
+                }
+                if (/^\d+\.\s/.test(line.trim())) {
+                    const num = line.trim().match(/^(\d+)\./)?.[1];
+                    const ct  = line.trim().replace(/^\d+\.\s/, '');
+                    return (
+                        <div key={i} className="flex items-start gap-2.5 mb-1.5 ml-2">
+                            <span className="font-bold text-xs min-w-[18px] font-mono" style={{ color: 'var(--primary)' }}>{num}.</span>
+                            <span className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{renderInline(ct)}</span>
+                        </div>
+                    );
+                }
+                if (line.trim() === '') return <div key={i} className="h-2" />;
+                return <p key={i} className="text-sm leading-relaxed mb-1.5" style={{ color: 'var(--text-secondary)' }}>{renderInline(line)}</p>;
+            })}
+        </>
+    );
 };
 
-// Inline markdown (bold, italic, code)
-function renderInline(text) {
-    if (!text) return text;
-    const parts = [];
-    let remaining = text;
-    let key = 0;
+// ── Evidence chunk card ───────────────────────────────────────────────────
+const EvidenceChunk = ({ chunk, index }) => {
+    const [open, setOpen] = useState(false);
+    return (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
+            className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface-subtle)' }}>
+            <button onClick={() => setOpen(!open)}
+                className="w-full flex items-center justify-between px-4 py-3 transition-colors text-left hover:bg-[var(--surface-subtle)]">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full"
+                        style={{ color: 'var(--primary)', background: 'rgba(58,12,163,0.08)' }}>SRC {index + 1}</span>
+                    <span className="text-xs truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>{chunk.slice(0, 60)}…</span>
+                </div>
+                {open ? <ChevronUp size={13} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} />}
+            </button>
+            <AnimatePresence>
+                {open && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
+                        className="px-4 pb-4 text-xs font-mono leading-relaxed" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                        <div className="pt-3">{chunk}</div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
+};
 
-    while (remaining.length > 0) {
-        // Bold
-        const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
-        if (boldMatch && boldMatch.index !== undefined) {
-            if (boldMatch.index > 0) parts.push(remaining.slice(0, boldMatch.index));
-            parts.push(<strong key={key++} className="text-white font-semibold">{boldMatch[1]}</strong>);
-            remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
-            continue;
-        }
-        parts.push(remaining);
-        break;
-    }
-    return parts;
-}
-
+// ── Reports page ─────────────────────────────────────────────────────────
 const Reports = () => {
     const [report, setReport] = useState(null);
-    const [showEvidence, setShowEvidence] = useState(false);
-    const [showDifferential, setShowDifferential] = useState(false);
+    const [showDifferential, setShowDifferential] = useState(true);
+    const [showKG, setShowKG] = useState(false);
 
     useEffect(() => {
         const stored = localStorage.getItem('lastReport');
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                setReport(parsed);
-                console.log("Report data:", parsed);
-            } catch (e) {
-                console.error("Failed to parse report:", e);
-            }
-        }
+        if (stored) { try { setReport(JSON.parse(stored)); } catch {} }
     }, []);
 
-    if (!report) {
-        return (
-            <div className="flex flex-col items-center justify-center p-16 text-center animate-fade-in">
-                <div className="p-6 bg-white/5 rounded-full mb-4 border border-white/10">
-                    <Search className="w-12 h-12 text-slate-500" />
-                </div>
-                <h2 className="text-xl font-semibold text-white">No Active Report Selected</h2>
-                <p className="text-slate-400 mt-2">Run a new diagnosis through the Upload engine to view detailed RAG reasoning here.</p>
+    const handleExport = () => {
+        toast.success('Export feature coming soon — PDF generation in progress.');
+    };
+
+    if (!report) return (
+        <div className="flex flex-col items-center justify-center py-24 text-center animate-fade-up">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
+                style={{ background: 'var(--surface-subtle)', border: '1px solid var(--border)' }}>
+                <Search size={28} style={{ color: 'var(--text-muted)' }} />
             </div>
-        );
-    }
+            <h2 className="heading-lg mb-2">No Report Active</h2>
+            <p className="text-sm max-w-xs" style={{ color: 'var(--text-muted)' }}>
+                Run a diagnosis through the Upload engine to view the RAG reasoning report here.
+            </p>
+        </div>
+    );
 
-    // Confidence
     const rawConf = report?.confidence_score ?? report?.confidence_calibration?.overall_confidence ?? 0;
-    const confidencePercent = rawConf <= 1.0 ? rawConf * 100 : rawConf;
-    const isHighConfidence = confidencePercent > 70;
-    const isMediumConfidence = confidencePercent > 50;
-    const confidenceScore = confidencePercent.toFixed(1);
-    const confidenceColor = isHighConfidence ? 'text-success' : isMediumConfidence ? 'text-yellow-400' : 'text-warning';
-    const confidenceBorder = isHighConfidence ? 'border-success/30' : isMediumConfidence ? 'border-yellow-400/30' : 'border-warning/30';
-    const confidenceGlow = isHighConfidence ? 'bg-success' : isMediumConfidence ? 'bg-yellow-400' : 'bg-warning';
-
-    // Risk
+    const confPct = rawConf <= 1.0 ? rawConf * 100 : rawConf;
     const rawRisk = report?.risk_score ?? 0;
-    const riskPercent = rawRisk <= 1.0 ? rawRisk * 100 : rawRisk;
-    const riskLevel = report?.risk_level ?? report?.risk_assessment?.risk_level ?? (riskPercent > 70 ? 'High' : riskPercent > 40 ? 'Medium' : 'Low');
-
-    // Emergency
-    const emergencyFlag = report?.emergency_flag ?? false;
-
-    // Hallucination
+    const riskPct = rawRisk <= 1.0 ? rawRisk * 100 : rawRisk;
+    const riskLevel = report?.risk_level ?? (riskPct > 70 ? 'High' : riskPct > 40 ? 'Medium' : 'Low');
     const hallScore = report?.hallucination_score ?? 0;
     const hallPassed = hallScore < 0.5;
-
-    // Specialty
     const specialty = report?.recommended_specialty ?? 'General';
-
-    // Differential diagnosis
     const differentials = report?.differential_diagnosis ?? [];
-
-    // Evidence
     const evidence = report?.evidence ?? '';
+    const evidenceChunks = evidence.split('\n\n').filter(c => c.trim().length > 10);
+    const diagnosisText = report?.final_report || report?.diagnosis || 'No diagnosis generated.';
+    const emergencyFlag = report?.emergency_flag ?? false;
 
-    // Diagnosis text (from final_report or diagnosis field)
-    const diagnosisText = report?.final_report || report?.diagnosis || "No diagnosis generated.";
+    const confColor = confPct >= 75 ? 'var(--success)' : confPct >= 50 ? 'var(--warning)' : 'var(--error)';
 
     return (
-        <div className="space-y-6 animate-fade-in pb-8">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-white tracking-tight flex items-center">
-                        <FileText className="mr-3 text-brand-500" /> Diagnosis Inference Report
-                    </h1>
-                    <p className="text-slate-400 mt-1">Generated by MedRAG Orchestrator</p>
-                </div>
-                {/* Specialty Badge */}
-                {specialty !== 'General' && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-brand-500/10 border border-brand-500/30 rounded-xl">
-                        <Stethoscope className="w-4 h-4 text-brand-400" />
-                        <span className="text-sm font-semibold text-brand-400">{specialty}</span>
-                    </div>
-                )}
-            </div>
+        <>
+            <KnowledgeGraphOverlay visible={showKG} onClose={() => setShowKG(false)}
+                query={report?.query || ''} diagnosis={diagnosisText} evidence={evidence} />
 
-            {/* Emergency Banner */}
-            {emergencyFlag && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3 animate-pulse">
-                    <AlertTriangle className="w-6 h-6 text-red-400" />
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} className="space-y-5 pb-12">
+
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <p className="text-red-400 font-bold">Emergency Flag Triggered</p>
-                        <p className="text-red-400/70 text-sm">Critical symptoms detected. Seek immediate medical attention.</p>
-                    </div>
-                </div>
-            )}
-
-            {/* Top Banner Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Confidence */}
-                <div className={`glass-panel border p-5 relative overflow-hidden ${confidenceBorder}`}>
-                    <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full blur-2xl opacity-20 ${confidenceGlow}`}></div>
-                    <div className="flex items-center space-x-3 mb-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
-                        {isHighConfidence ? <ShieldCheck className="text-success w-5 h-5" /> : <ShieldAlert className="text-warning w-5 h-5" />}
-                        <span>Engine Confidence</span>
-                    </div>
-                    <div className="flex items-end space-x-2 mt-4">
-                        <span className={`text-4xl font-bold tracking-tight ${confidenceColor}`}>{confidenceScore}</span>
-                        <span className="text-slate-400 font-medium mb-1">%</span>
-                    </div>
-                    <div className="mt-3 w-full bg-white/5 rounded-full h-1.5">
-                        <div className={`h-full rounded-full ${isHighConfidence ? 'bg-success' : isMediumConfidence ? 'bg-yellow-400' : 'bg-warning'}`}
-                             style={{ width: `${Math.min(confidencePercent, 100)}%`, transition: 'width 1s ease' }}></div>
-                    </div>
-                </div>
-
-                {/* Hallucination */}
-                <div className="glass-panel border border-white/10 p-5 flex flex-col justify-center">
-                    <div className="flex items-center space-x-3 mb-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
-                        <GitCommit className="text-brand-500 w-5 h-5" />
-                        <span>Hallucination Audit</span>
-                    </div>
-                    <p className="mt-2 text-lg font-medium">
-                        {hallPassed ? (
-                            <span className="text-success flex items-center"><ShieldCheck size={18} className="mr-2" /> Verified ✓</span>
-                        ) : (
-                            <span className="text-yellow-400 flex items-center"><ShieldAlert size={18} className="mr-2" /> Review Suggested</span>
-                        )}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                        Score: {(hallScore * 100).toFixed(1)}% — {hallPassed ? 'Evidence-grounded diagnosis' : 'Some claims beyond retrieved evidence'}
-                    </p>
-                </div>
-
-                {/* Risk */}
-                <RiskScoreCard score={riskPercent} level={riskLevel} />
-            </div>
-
-            {/* Differential Diagnosis Panel */}
-            {differentials.length > 0 && (
-                <div className="glass-panel border border-white/10 overflow-hidden">
-                    <button
-                        onClick={() => setShowDifferential(!showDifferential)}
-                        className="w-full px-6 py-4 bg-white/5 border-b border-white/10 flex items-center justify-between hover:bg-white/[0.07] transition-colors"
-                    >
-                        <h3 className="font-bold text-white flex items-center">
-                            <Star className="w-5 h-5 text-yellow-400 mr-3" />
-                            Differential Diagnosis ({differentials.length} conditions)
-                        </h3>
-                        {showDifferential ? <ChevronUp className="text-slate-400" /> : <ChevronDown className="text-slate-400" />}
-                    </button>
-                    {showDifferential && (
-                        <div className="p-6 space-y-3">
-                            {differentials.map((diff, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-brand-400 font-bold text-sm w-6">{i + 1}.</span>
-                                        <span className="text-slate-200 font-medium">{diff.condition || diff.name || JSON.stringify(diff)}</span>
-                                    </div>
-                                    {diff.probability != null && (
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-20 bg-white/5 rounded-full h-2">
-                                                <div className="h-full bg-brand-500 rounded-full" style={{ width: `${diff.probability * 100}%` }}></div>
-                                            </div>
-                                            <span className="text-xs text-slate-400 w-10 text-right">{(diff.probability * 100).toFixed(0)}%</span>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl" style={{ background: 'rgba(58,12,163,0.08)', border: '1px solid rgba(58,12,163,0.15)' }}>
+                                <FileText size={18} style={{ color: 'var(--primary)' }} />
+                            </div>
+                            <h1 className="heading-lg">Diagnosis Report</h1>
                         </div>
-                    )}
-                </div>
-            )}
-
-            {/* Core Body */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Main Diagnosis */}
-                <div className="lg:col-span-8 glass-panel border border-white/10 overflow-hidden flex flex-col">
-                    <div className="px-6 py-4 bg-white/5 border-b border-white/10 flex items-center justify-between">
-                        <h3 className="font-bold border-l-4 border-brand-500 pl-3 leading-none text-white">
-                            Synthesized Clinical Evaluation
-                        </h3>
+                        <p className="text-xs mt-1 ml-12" style={{ color: 'var(--text-muted)' }}>Generated by MedRAG Orchestrator · gpt-5.4-mini</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
                         {specialty !== 'General' && (
-                            <span className="text-xs bg-brand-500/10 text-brand-400 px-3 py-1 rounded-full font-medium">
-                                {specialty}
-                            </span>
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs"
+                                style={{ background: 'var(--info-bg)', border: '1px solid rgba(52,152,219,0.2)' }}>
+                                <Stethoscope size={11} style={{ color: 'var(--info)' }} />
+                                <span className="font-medium" style={{ color: 'var(--info)' }}>{specialty}</span>
+                            </div>
                         )}
-                    </div>
-                    <div className="p-6 flex-1 overflow-y-auto max-h-[700px]">
-                        <MarkdownRenderer text={
-                            report?.diagnosis || report?.final_report || "No diagnosis generated."
-                        } />
+                        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                            onClick={() => setShowKG(true)} className="btn-ghost flex items-center gap-1.5 text-xs">
+                            <Network size={11} style={{ color: 'var(--primary)' }} /> Knowledge Graph
+                        </motion.button>
+                        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                            onClick={handleExport} className="btn-ghost flex items-center gap-1.5 text-xs">
+                            <Download size={11} /> Export PDF
+                        </motion.button>
                     </div>
                 </div>
 
-                {/* Right Sidebar */}
-                <div className="lg:col-span-4 space-y-6">
-                    {/* Original Query */}
-                    <div className="glass-panel border border-white/10 p-5">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Original Clinical Query</h4>
-                        <p className="text-sm font-medium text-slate-300 italic">"{report?.query || '—'}"</p>
+                {/* Emergency banner */}
+                {emergencyFlag && (
+                    <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+                        className="rounded-xl p-4 flex items-center gap-3"
+                        style={{ background: 'var(--error-bg)', border: '1px solid rgba(231,76,60,0.3)' }}>
+                        <AlertTriangle size={20} className="animate-pulse shrink-0" style={{ color: 'var(--error)' }} />
+                        <div>
+                            <p className="font-bold text-sm" style={{ color: 'var(--error)' }}>Emergency Flag Triggered</p>
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--error)', opacity: 0.8 }}>Critical symptoms detected. Seek immediate medical attention.</p>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* KPI cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bento-card p-5">
+                        <p className="label-caps mb-4">Engine Confidence</p>
+                        <div className="flex items-end gap-2 mb-3">
+                            <span className="text-5xl font-black tracking-tighter" style={{ color: confColor }}>{confPct.toFixed(0)}</span>
+                            <span className="text-lg mb-1" style={{ color: 'var(--text-muted)' }}>%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-subtle)' }}>
+                            <motion.div className="h-full rounded-full" initial={{ width: 0 }}
+                                animate={{ width: `${Math.min(confPct, 100)}%` }}
+                                transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }} style={{ background: confColor }} />
+                        </div>
+                        <div className="mt-3"><ConfidenceBadge score={confPct} size="sm" /></div>
                     </div>
 
-                    {/* Evidence Sources */}
-                    <div className="glass-panel border border-white/10 overflow-hidden flex flex-col">
-                        <button
-                            onClick={() => setShowEvidence(!showEvidence)}
-                            className="px-5 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between hover:bg-white/[0.07] transition-colors"
-                        >
-                            <span className="font-semibold text-sm text-slate-300 flex items-center">
-                                <BookOpen className="w-4 h-4 mr-2" /> Retrieved Evidence
-                            </span>
-                            {showEvidence ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                        </button>
-                        {showEvidence && (
-                            <div className="p-4 overflow-y-auto max-h-[400px] text-xs text-slate-400 space-y-3 whitespace-pre-wrap leading-relaxed font-mono">
-                                {evidence && evidence.length > 10 ? (
-                                    evidence.split('\n\n').map((chunk, i) => (
-                                        <div key={i} className="p-3 bg-white/5 rounded-lg border border-white/5">
-                                            <div className="text-[10px] text-brand-400 font-bold mb-1">Source {i + 1}</div>
-                                            {chunk}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-slate-500 italic">Diagnosis based on LLM medical knowledge. No matching vector context was retrieved.</p>
+                    <div className="bento-card p-5">
+                        <p className="label-caps mb-4">Hallucination Audit</p>
+                        <div className="flex items-center gap-3 mb-3">
+                            {hallPassed ? <ShieldCheck size={28} style={{ color: 'var(--success)' }} /> : <ShieldAlert size={28} style={{ color: 'var(--warning)' }} />}
+                            <div>
+                                <p className="font-bold text-sm" style={{ color: hallPassed ? 'var(--success)' : '#B8860B' }}>
+                                    {hallPassed ? 'Verified ✓' : 'Review Suggested'}
+                                </p>
+                                <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>Score: {(hallScore * 100).toFixed(1)}%</p>
+                            </div>
+                        </div>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {hallPassed ? 'All claims grounded in retrieved evidence.' : 'Some claims extend beyond retrieved context.'}
+                        </p>
+                    </div>
+
+                    <RiskScoreCard score={riskPct} level={riskLevel} />
+                </div>
+
+                {/* Diagnosis + Evidence sidebar */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }} className="lg:col-span-8 bento-card flex flex-col">
+                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-1 h-5 rounded-full" style={{ background: 'var(--primary)' }} />
+                                <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Synthesized Clinical Evaluation</h2>
+                            </div>
+                            <ConfidenceBadge score={confPct} size="sm" />
+                        </div>
+                        <div className="p-6 flex-1 overflow-y-auto max-h-[600px]">
+                            <MarkdownRenderer text={diagnosisText} />
+                        </div>
+                    </motion.div>
+
+                    <div className="lg:col-span-4 space-y-4">
+                        {report?.query && (
+                            <div className="bento-card p-4">
+                                <p className="label-caps mb-2">Clinical Query</p>
+                                <p className="text-sm italic leading-relaxed" style={{ color: 'var(--text-secondary)' }}>"{report.query}"</p>
+                            </div>
+                        )}
+
+                        {evidenceChunks.length > 0 && (
+                            <div className="bento-card overflow-hidden">
+                                <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                                    <BookOpen size={13} style={{ color: 'var(--primary)' }} />
+                                    <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Retrieved Evidence</span>
+                                    <span className="ml-auto text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{evidenceChunks.length} sources</span>
+                                </div>
+                                <div className="p-3 space-y-2 max-h-72 overflow-y-auto">
+                                    {evidenceChunks.map((chunk, i) => (<EvidenceChunk key={i} chunk={chunk} index={i} />))}
+                                </div>
+                            </div>
+                        )}
+
+                        {report?.recommendations && (
+                            <div className="bento-card p-4">
+                                <p className="label-caps mb-3">Recommendations</p>
+                                {report.recommendations.meal_plan && (
+                                    <div className="mb-3">
+                                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--success)' }}>🍽️ Meal Plan</p>
+                                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                            {typeof report.recommendations.meal_plan === 'object' ? JSON.stringify(report.recommendations.meal_plan.day_1 || report.recommendations.meal_plan) : report.recommendations.meal_plan}
+                                        </p>
+                                    </div>
+                                )}
+                                {report.recommendations.activity_plan && (
+                                    <div>
+                                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--primary)' }}>🏃 Activity Plan</p>
+                                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                            {typeof report.recommendations.activity_plan === 'object' ? report.recommendations.activity_plan.daily_goal || JSON.stringify(report.recommendations.activity_plan) : report.recommendations.activity_plan}
+                                        </p>
+                                    </div>
                                 )}
                             </div>
                         )}
                     </div>
-
-                    {/* Recommendations */}
-                    {report?.recommendations && (
-                        <div className="glass-panel border border-white/10 p-5">
-                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Recommendations</h4>
-                            {report.recommendations.meal_plan && (
-                                <div className="mb-3">
-                                    <p className="text-xs text-brand-400 font-semibold mb-1">🍽️ Meal Plan</p>
-                                    <p className="text-xs text-slate-400">
-                                        {typeof report.recommendations.meal_plan === 'object'
-                                            ? JSON.stringify(report.recommendations.meal_plan.day_1 || report.recommendations.meal_plan)
-                                            : report.recommendations.meal_plan}
-                                    </p>
-                                </div>
-                            )}
-                            {report.recommendations.activity_plan && (
-                                <div>
-                                    <p className="text-xs text-brand-400 font-semibold mb-1">🏃 Activity Plan</p>
-                                    <p className="text-xs text-slate-400">
-                                        {typeof report.recommendations.activity_plan === 'object'
-                                            ? report.recommendations.activity_plan.daily_goal || JSON.stringify(report.recommendations.activity_plan)
-                                            : report.recommendations.activity_plan}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
-            </div>
-        </div>
+
+                {/* Differential Diagnosis */}
+                {differentials.length > 0 && (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }} className="bento-card overflow-hidden">
+                        <button onClick={() => setShowDifferential(!showDifferential)}
+                            className="w-full flex items-center justify-between px-6 py-4 transition-colors hover:bg-[var(--surface-subtle)]"
+                            style={{ borderBottom: showDifferential ? '1px solid var(--border)' : 'none' }}>
+                            <div className="flex items-center gap-3">
+                                <Star size={15} style={{ color: 'var(--warning)' }} />
+                                <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Differential Diagnosis</span>
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full" style={{ color: 'var(--text-muted)', background: 'var(--surface-subtle)' }}>
+                                    {differentials.length} conditions
+                                </span>
+                            </div>
+                            <motion.div animate={{ rotate: showDifferential ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                                <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
+                            </motion.div>
+                        </button>
+                        <AnimatePresence>
+                            {showDifferential && (
+                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }}
+                                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                                    {differentials.map((diff, i) => {
+                                        const prob = (diff.probability ?? 0) * 100;
+                                        const color = prob >= 60 ? 'var(--success)' : prob >= 35 ? 'var(--warning)' : 'var(--text-muted)';
+                                        return (
+                                            <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ delay: i * 0.05, type: 'spring', stiffness: 300 }}
+                                                className="rounded-xl p-4" style={{ background: 'var(--surface-subtle)', border: '1px solid var(--border)' }}>
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <span className="text-xs font-bold font-mono" style={{ color: 'var(--text-muted)' }}>#{i + 1}</span>
+                                                    <span className="text-xs font-bold font-mono" style={{ color }}>{prob.toFixed(0)}%</span>
+                                                </div>
+                                                <p className="text-sm font-semibold leading-snug mb-3" style={{ color: 'var(--text-primary)' }}>
+                                                    {diff.condition || diff.name || JSON.stringify(diff)}
+                                                </p>
+                                                <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                                                    <motion.div className="h-full rounded-full" initial={{ width: 0 }}
+                                                        animate={{ width: `${prob}%` }}
+                                                        transition={{ duration: 0.8, delay: i * 0.1, ease: 'easeOut' }} style={{ background: color }} />
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
+                )}
+            </motion.div>
+        </>
     );
 };
 

@@ -1,7 +1,6 @@
 import logging
 import re
 from backend.llm.openai_client import openai_client
-from backend.llm.prompt_templates import HALLUCINATION_CHECK_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -11,60 +10,97 @@ class HallucinationChecker:
         """
         Calculates hallucination score comparing LLM response to retrieved context.
         Returns: (hallucination_score: float 0.0-1.0, flags: list[str])
-        
-        IMPORTANT DISTINCTION:
-        - "Hallucination" = fabricated medical claims or contradictions
-        - "Using own knowledge" = NOT hallucination (LLMs are trained on medical literature)
-        - "Topic mismatch" = Retrieved evidence is on a different topic; this is a RETRIEVAL 
-          quality issue, NOT a hallucination issue
+
+        Two-stage approach:
+          Stage 1 — Deterministic: evidence term overlap (fast, reproducible)
+          Stage 2 — LLM-graded: semantic claim verification (nuanced, but stochastic)
+
+        The final score is a weighted blend:
+          final = 0.35 * deterministic + 0.65 * llm_score
+
+        This ensures a reproducible baseline while still leveraging LLM judgment.
         """
-        logger.info("Running hallucination checker via OpenAI...")
-        
+        logger.info("Running two-stage hallucination checker...")
+
+        # ── Stage 1: Deterministic evidence overlap ──────────────────────────
+        from backend.services.confidence_engine import evidence_overlap_score
+        overlap = evidence_overlap_score(response, retrieved_context)
+        # Invert: high overlap = low hallucination
+        deterministic_score = round(max(0.0, 1.0 - overlap), 3)
+        logger.info(f"Hallucination Stage 1 (deterministic): overlap={overlap:.2f} → score={deterministic_score:.2f}")
+
         if not retrieved_context or len(retrieved_context.strip()) < 20:
-            return 0.3, ["No retrieved context; diagnosis based on LLM medical knowledge."]
-                
-        prompt = f"""You are a medical report auditor. Compare the generated report to the retrieved evidence.
+            return 0.15, [
+                "No retrieved context; diagnosis based on LLM medical knowledge — low hallucination risk for established medical knowledge.",
+                f"Deterministic overlap score: {deterministic_score:.2f}"
+            ]
+
+        # ── Stage 2: LLM-graded semantic verification ────────────────────────
+        prompt = f"""You are a STRICT medical report auditor performing evidence-grounded verification.
 
 RETRIEVED EVIDENCE:
-{retrieved_context[:3000]}
+{retrieved_context[:4000]}
 
 GENERATED REPORT:
-{response[:2000]}
+{response[:3000]}
 
-SCORING RULES:
-- If the evidence is on a DIFFERENT TOPIC than the report, this is NOT hallucination — it's a retrieval mismatch. Score 0.2-0.3.
-- If the report makes medically accurate statements that aren't in the evidence, this is the AI using its own medical training. Score 0.1-0.3.
-- Only score above 0.5 if the report contains claims that DIRECTLY CONTRADICT the evidence or are clearly medically WRONG.
-- Score 0.7+ only if there are fabricated statistics, invented study names, or dangerous medical misinformation.
+STRICT SCORING RULES:
+1. Check if clinical claims are supported by the retrieved evidence
+2. Claims marked [Evidence] MUST have supporting text in the evidence — if not, flag as unsupported
+3. Claims marked [Clinical Reasoning] should be well-established medical facts — flag if obscure or questionable
+4. Claims WITHOUT any citation tag are automatically suspicious — flag them
+5. If the evidence topic matches the report topic, score based on factual alignment:
+   - 0.0-0.05: All claims well-grounded in evidence, properly cited, no gaps
+   - 0.05-0.10: Excellent grounding with trivial summary differences
+   - 0.10-0.15: Minor gaps, but all claims are medically accurate and mostly cited
+   - 0.15-0.25: Some uncited claims, but no contradictions
+   - 0.25-0.40: Multiple uncited or weakly supported claims
+   - 0.40-0.60: Contains claims that clearly go beyond evidence
+   - 0.60-0.80: Contains claims that contradict evidence
+   - 0.80-1.0: Fabricated data, invented studies, or dangerous misinformation
+6. If evidence is on a DIFFERENT TOPIC: score 0.15-0.25 (retrieval mismatch, not hallucination)
+
+IMPORTANT: Be PRECISE. Do not round to convenient numbers like 0.1 or 0.2. Give exact scores like 0.07 or 0.13.
 
 Return ONLY a decimal score (0.0-1.0) on the first line.
-Return brief flags on subsequent lines."""
+Return brief, specific flags on subsequent lines (what was flagged and why)."""
 
         try:
             llm_response = await openai_client.generate_completion(
                 prompt=prompt,
-                system_prompt="You are a precise medical auditor. Score hallucination fairly. Topic mismatch between evidence and report is NOT hallucination.",
-                max_tokens=200
+                system_prompt="You are a strict medical auditor. Grade hallucination precisely. Be fair but thorough — every unsupported claim matters.",
+                temperature=0.0,  # Deterministic scoring
+                max_tokens=400
             )
-            
+
             lines = llm_response.strip().split("\n")
             score_str = lines[0].strip()
-            
+
             match = re.search(r'0\.\d+|1\.0|0|1', score_str)
             if match:
-                score = float(match.group())
+                llm_score = float(match.group())
             else:
-                score = 0.25
-            
-            flags = [l.strip() for l in lines[1:] if l.strip()] or ["Audited via LLM."]
-            
-            logger.info(f"Hallucination check: score={score:.2f}, flags={flags[:2]}")
-            return min(score, 1.0), flags
-            
+                llm_score = 0.15  # Default to low if parsing fails
+
+            flags = [l.strip() for l in lines[1:] if l.strip()] or ["Audited via strict LLM checker."]
+
+            # ── Blend: 35% deterministic + 65% LLM ──────────────────────────
+            blended_score = round(0.35 * deterministic_score + 0.65 * llm_score, 4)
+
+            flags.insert(0, f"Deterministic overlap: {overlap:.2f} | LLM score: {llm_score:.2f} | Blended: {blended_score:.3f}")
+
+            logger.info(
+                f"Hallucination check: deterministic={deterministic_score:.2f}, "
+                f"llm={llm_score:.2f}, blended={blended_score:.3f}, flags={flags[:3]}"
+            )
+            return min(blended_score, 1.0), flags
+
         except Exception as e:
-            logger.warning(f"Hallucination checker LLM failed (fallback): {e}")
-            # Rule-based fallback — default to low hallucination
-            return 0.25, ["Hallucination check fallback: LLM unavailable."]
+            logger.warning(f"Hallucination checker LLM failed (fallback to deterministic): {e}")
+            # Fall back to deterministic-only score
+            return deterministic_score, [
+                f"Hallucination check LLM unavailable — using deterministic overlap: {deterministic_score:.2f}"
+            ]
 
 async def detect_hallucination(response, retrieved_context):
     return await HallucinationChecker.detect_hallucination(response, retrieved_context)

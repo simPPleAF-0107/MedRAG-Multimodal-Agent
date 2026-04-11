@@ -19,6 +19,9 @@ medrag.db
 # ═══ Vector Store (large binary files) ═══
 vector-db/
 
+# ═══ HuggingFace Models & Datasets (local cache) ═══
+models/huggingface/
+
 # ═══ Node / Web Frontend ═══
 node_modules/
 frontend-web/node_modules/

@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-// Create a global Axios instance to point to the FastAPI backend
+// Create a global Axios instance that routes through the Vite dev proxy.
+// Using a relative baseURL (/api/v1) instead of absolute (http://localhost:8000)
+// so ALL requests go through Vite's proxy server-side, eliminating CORS entirely.
 const api = axios.create({
-    baseURL: 'http://localhost:8000/api/v1',
+    baseURL: '/api/v1',
     timeout: 600000, // 10 minutes — RAG pipeline can take several minutes
 });
 
@@ -91,19 +93,21 @@ export const loginUser = async (identifier, password, role) => {
         };
     } catch (e) {
         console.warn('Backend login failed, falling back to mock auth:', e.message);
-        // Fallback to mock auth for offline demo
+        // Fallback to mock auth for offline demo.
+        // access_token is set to 'demo-bypass' (not null) so the Authorization
+        // interceptor always sends a header, preventing 401 silent-logout loops.
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 if (role === 'doctor') {
                     const doc = mockDoctors.find(u => u.identifier === identifier);
                     if (!doc) return reject(new Error('Doctor profile not found.'));
                     if (doc.password !== password) return reject(new Error('Wrong credentials for Doctor.'));
-                    resolve({ status: 'success', user_id: doc.id, email: doc.identifier, name: doc.name, role, specialty: doc.specialty, access_token: null });
+                    resolve({ status: 'success', user_id: doc.id, email: doc.identifier, name: doc.name, role, specialty: doc.specialty, access_token: 'demo-bypass' });
                 } else {
                     const pat = mockPatients.find(u => u.identifier === identifier);
                     if (!pat) return reject(new Error('Patient not found.'));
                     if (pat.password !== password) return reject(new Error('Wrong credentials for Patient.'));
-                    resolve({ status: 'success', user_id: pat.id, email: pat.identifier, name: pat.name, role, sex: pat.sex, access_token: null });
+                    resolve({ status: 'success', user_id: pat.id, email: pat.identifier, name: pat.name, role, sex: pat.sex, access_token: 'demo-bypass' });
                 }
             }, 300);
         });
@@ -165,20 +169,57 @@ export const generateReport = async (formData) => {
         const res = await api.post('/rag/generate-report', formData);
         return res;
     } catch (e) {
-        // Mock Fallback
+        console.warn('Backend unavailable — returning structured mock report for offline demo:', e.message);
+        // Mock schema MUST match what Reports.jsx reads:
+        //   final_report, confidence_score, risk_score, risk_level, hallucination_score,
+        //   emergency_flag, recommended_specialty, differential_diagnosis[], evidence, query
         return new Promise((resolve) => {
             setTimeout(() => {
                 resolve({
                     data: {
                         status: "success",
-                        diagnosis: "Mock Fallback Diagnosis: Potential localized inflammation or muscular strain based on observed patient metrics. Recommended rest, hydration, and NSAIDs as needed.",
-                        evidences: [
-                            "Clinical Trial 1032 indicates 85% efficacy for standard NSAID protocol in similar strain patterns.",
-                            "Image analysis (simulated): No apparent fractures. Soft tissue slightly elevated."
-                        ]
+                        query: formData.get ? formData.get('query') : '',
+                        final_report:
+                            "## Clinical Assessment (Offline Demo)\n\n" +
+                            "**Chief Complaint:** Symptoms provided via query.\n\n" +
+                            "### Preliminary Findings\n\n" +
+                            "Based on the available evidence, the pattern is consistent with **localized musculoskeletal inflammation** " +
+                            "with possible systemic involvement. Elevated inflammatory markers (CRP, ESR) and joint involvement " +
+                            "suggest an autoimmune or reactive aetiology.\n\n" +
+                            "### Recommended Workup\n\n" +
+                            "- Anti-CCP antibody testing\n" +
+                            "- Complete metabolic panel (CMP)\n" +
+                            "- Rheumatology referral within 2 weeks\n" +
+                            "- Trial NSAID therapy (Naproxen 500mg BID with food)\n\n" +
+                            "---\n\n" +
+                            "*Note: This is an offline demo report. Connect the backend for live AI-generated diagnosis.*",
+                        diagnosis:
+                            "Offline Demo: Localized musculoskeletal inflammation with potential autoimmune aetiology.",
+                        confidence_score: 0.72,
+                        risk_score: 0.45,
+                        risk_level: "Medium",
+                        hallucination_score: 0.08,
+                        emergency_flag: false,
+                        recommended_specialty: "Rheumatology",
+                        differential_diagnosis: [
+                            { condition: "Rheumatoid Arthritis (early)",    probability: 0.52 },
+                            { condition: "Reactive Arthritis",              probability: 0.25 },
+                            { condition: "Musculoskeletal Strain",          probability: 0.15 },
+                            { condition: "Systemic Lupus Erythematosus",    probability: 0.08 },
+                        ],
+                        evidence:
+                            "Source 1: Clinical trial data indicating elevated CRP (>5 mg/L) in conjunction " +
+                            "with bilateral joint involvement carries a 60% predictive value for early RA.\n\n" +
+                            "Source 2: Anti-CCP antibody specificity for RA is 95-98%; sensitivity 67-80%. " +
+                            "Negative result does not exclude seronegative RA.\n\n" +
+                            "Source 3: NSAIDs provide symptomatic relief in 75% of reactive arthritis cases " +
+                            "within 2 weeks; DMARDs reserved for persistent disease.",
+                        confidence_calibration: {
+                            overall_confidence: 72
+                        }
                     }
                 });
-            }, 2000);
+            }, 1800);
         });
     }
 };
@@ -401,6 +442,66 @@ export const chatWithAI = async (message, patientId) => {
                 route: "error"
             }
         };
+    }
+};
+
+// ─── Tracker AI Suggestion ────────────────────────────────────────────────
+export const getTrackerSuggestion = async (type, logs, patientContext = {}) => {
+    try {
+        const res = await api.post('/tracker/suggest', {
+            type,
+            logs,
+            patient_context: patientContext,
+        });
+        return res.data;
+    } catch (e) {
+        console.warn(`Tracker AI (${type}) backend unavailable, returning mock suggestion:`, e.message);
+        const mockSuggestions = {
+            meal: {
+                status: 'success',
+                type: 'meal',
+                suggestion:
+                    "## 🥗 Your Personalized 7-Day Meal Plan\n\n" +
+                    "### Monday\n- **Breakfast:** Greek yogurt with walnuts and blueberries (anti-inflammatory)\n- **Lunch:** Grilled salmon salad with olive oil dressing\n- **Dinner:** Quinoa bowl with roasted vegetables and turmeric\n\n" +
+                    "### Tuesday\n- **Breakfast:** Overnight oats with chia seeds and banana\n- **Lunch:** Lentil soup with whole grain bread\n- **Dinner:** Baked chicken breast with sweet potato and steamed broccoli\n\n" +
+                    "### Wednesday — Sunday\n*Follow a similar pattern alternating between lean proteins, complex carbs, and omega-3 rich foods.*\n\n" +
+                    "### Key Recommendations\n- ✅ Increase omega-3 intake (salmon, walnuts, flaxseed)\n- ✅ Add turmeric and ginger for anti-inflammatory benefits\n- ⚠️ Reduce processed sugars and refined carbs\n- 💧 Aim for 8-10 glasses of water daily",
+            },
+            activity: {
+                status: 'success',
+                type: 'activity',
+                suggestion:
+                    "## 🏃 Your Weekly Activity Plan\n\n" +
+                    "### Monday — Low Impact\n- 30 min walking (HR zone: 100-120 BPM)\n- 10 min stretching routine\n\n" +
+                    "### Tuesday — Moderate\n- 25 min stationary bike (HR zone: 120-140 BPM)\n- 15 min light resistance exercises\n\n" +
+                    "### Wednesday — Rest Day\n- Gentle yoga or meditation only\n\n" +
+                    "### Thursday — Moderate\n- 20 min swimming (excellent for joint-friendly cardio)\n\n" +
+                    "### Friday — Low Impact\n- 30 min walking outdoors\n\n" +
+                    "### Weekend — Active Recovery\n- Light recreational activity of choice\n\n" +
+                    "### Weekly Progress Target\n- Total active minutes: 150 min/week\n- Avg HR during exercise: 110-130 BPM\n- Gradual increase of 10% per week",
+            },
+            mood: {
+                status: 'success',
+                type: 'mood',
+                suggestion:
+                    "## 🧠 Mood & Wellness Insights\n\n" +
+                    "### Trend Analysis\n📈 Your mood scores show a **slight upward trend** over the last entries. Stress levels have been fluctuating but are currently stable.\n\n" +
+                    "### Pattern Observations\n- Higher mood scores correlate with **7+ hours of sleep**\n- Stress peaks appear to coincide with weekday mornings\n- Post-exercise entries show consistently better mood (avg +1.5 points)\n\n" +
+                    "### Recommended Actions\n1. **Sleep Hygiene:** Maintain consistent bedtime (±30 min). Your data shows sleep quality directly impacts next-day mood.\n2. **Morning Routine:** Try a 5-min breathing exercise before starting your day — shown to reduce morning stress by 30%.\n3. **Exercise Timing:** Moving your activity to morning hours may improve mood for the remainder of the day.\n4. **Journaling:** Continue logging — 3 weeks of data enables more accurate pattern detection.\n\n" +
+                    "### ⚠️ Watch For\nIf mood consistently drops below 4/10 for 3+ consecutive days, consider scheduling a mental health consultation.",
+            },
+            cycle: {
+                status: 'success',
+                type: 'cycle',
+                suggestion:
+                    "## 🌸 Cycle Health Insights\n\n" +
+                    "### Cycle Overview\n- **Average cycle length:** ~28 days (based on logged entries)\n- **Predicted next cycle:** Approximately 14 days from your last entry\n- **Regularity:** Within normal variation\n\n" +
+                    "### Symptom Management\n- **Cramping (severity 4-6):** Over-the-counter ibuprofen 30 min before onset. Heat therapy.\n- **Fatigue:** Increase iron-rich foods (spinach, legumes) during days 1-5.\n- **Mood changes:** Magnesium supplementation (200-400mg) may help during luteal phase.\n\n" +
+                    "### Phase-Based Tips\n- **Follicular (Day 1-13):** Energy increasing. Best time for high-intensity workouts.\n- **Ovulatory (Day 14):** Peak energy. Excellent for demanding tasks.\n- **Luteal (Day 15-28):** Energy decreasing. Prioritize rest, gentle exercises, comfort foods.\n\n" +
+                    "### When to Consult\n- Cycle consistently <21 or >35 days\n- Severe cramp score ≥8 for multiple cycles\n- Significant flow changes persisting 3+ cycles",
+            },
+        };
+        return mockSuggestions[type] || { status: 'error', suggestion: 'Unknown tracker type.' };
     }
 };
 

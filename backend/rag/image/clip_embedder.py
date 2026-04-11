@@ -1,7 +1,7 @@
 import asyncio
+from backend.config import settings
 from sentence_transformers import SentenceTransformer
 from PIL import Image
-from backend.config import settings
 
 class ClipEmbedder:
     def __init__(self):

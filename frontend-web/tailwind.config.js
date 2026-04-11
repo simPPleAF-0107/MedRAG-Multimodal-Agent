@@ -7,31 +7,37 @@ export default {
     theme: {
         extend: {
             colors: {
+                // Brand palette aligned with the new light theme
                 brand: {
-                    50: '#e0fbff',
-                    100: '#b3f5ff',
-                    500: '#45F3FF', // Neon Cyan
-                    600: '#00d7e6',
-                    700: '#00aab8',
-                    900: '#00555c',
+                    50:  '#F0EDFF',
+                    100: '#D9D2FF',
+                    400: '#6B4FD4',
+                    500: '#3A0CA3',  // Primary
+                    600: '#2E0882',
+                    700: '#220664',
                 },
-                coral: {
-                    500: '#FF2A7A', // Electric Coral
-                    600: '#e61e66',
+                secondary: {
+                    400: '#5A73F0',
+                    500: '#4361EE',  // Secondary
+                    600: '#344ECC',
                 },
-                deepSpace: '#0B0C10',
-                surface: '#1F2833',
-                danger: '#dc2626',
-                warning: '#f59e0b',
-                success: '#10b981',
+                accent: {
+                    cyan: '#4CC9F0',
+                    mint: '#A3F7FF',
+                },
+                danger: '#E74C3C',
+                warning: '#F1C40F',
+                success: '#2ECC71',
+                info: '#3498DB',
             },
             fontFamily: {
-                sans: ['Outfit', 'sans-serif'],
+                sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
             },
             boxShadow: {
-                'neon': '0 0 10px rgba(69, 243, 255, 0.4)',
-                'neon-coral': '0 0 10px rgba(255, 42, 122, 0.4)',
-            }
+                'soft': '0 2px 6px rgba(0,0,0,0.05)',
+                'lifted': '0 8px 24px rgba(0,0,0,0.08)',
+                'primary': '0 4px 16px rgba(58,12,163,0.2)',
+            },
         },
     },
     plugins: [],

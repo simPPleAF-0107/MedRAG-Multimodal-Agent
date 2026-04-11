@@ -43,6 +43,7 @@ class CorePipeline:
             "retrieval_scores": [],
             "diagnosis": "",
             "hallucination_score": 0.0,
+            "hallucination_flags": [],
             "risk_score": 0,
             "risk_level": "Unknown",
             "emergency_flag": False,
@@ -51,6 +52,8 @@ class CorePipeline:
             "recommendations": {},
             "heatmap_path": "",
             "recommended_specialty": "General",
+            "verification_passed": False,
+            "correction_attempts": 0,
             "final_payload": {}
         }
 

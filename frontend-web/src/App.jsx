@@ -30,7 +30,7 @@ const ProtectedRoute = ({ children }) => {
 
 const Layout = ({ children }) => {
     return (
-        <div className="flex h-screen bg-transparent overflow-hidden text-slate-100">
+        <div className="flex h-screen overflow-hidden" style={{ background: 'var(--background)', color: 'var(--text-primary)' }}>
             <Sidebar />
             <div className="flex-1 flex flex-col h-full overflow-hidden">
                 <Navbar />
@@ -68,11 +68,11 @@ function App() {
                 position="top-right" 
                 toastOptions={{
                     style: {
-                        background: 'rgba(15, 23, 42, 0.9)',
-                        color: '#e2e8f0',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        backdropFilter: 'blur(10px)',
+                        background: 'var(--surface)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border)',
                         borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                     },
                 }}
             />

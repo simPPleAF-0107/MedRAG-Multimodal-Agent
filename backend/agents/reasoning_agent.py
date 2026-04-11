@@ -5,6 +5,11 @@ class ReasoningAgent:
     """
     Agent responsible for analyzing the retrieved context
     and forming a differential diagnosis and reasoning track.
+    
+    Tuned for maximum accuracy:
+    - temperature=0.1 for deterministic, evidence-grounded reasoning
+    - max_tokens=2500 for thorough chain-of-thought analysis
+    - Explicit evidence citation via prompt engineering
     """
     
     def __init__(self):
@@ -29,7 +34,8 @@ class ReasoningAgent:
         diagnosis_reasoning = await openai_client.generate_completion(
             prompt=diagnosis_prompt,
             system_prompt=MEDICAL_ASSISTANT_SYSTEM_PROMPT,
-            temperature=0.2
+            temperature=0.05,  # Near-zero temperature = maximum determinism, minimal hallucination
+            max_tokens=2500    # Higher budget = thorough chain-of-thought reasoning
         )
         
         return {

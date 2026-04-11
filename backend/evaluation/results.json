@@ -1,0 +1,32 @@
+{
+    "benchmark_timestamp": "2026-04-10T21:46:24",
+    "total_cases": 3,
+    "mean_latency_seconds": 34.31,
+    "mean_confidence": 94.33,
+    "case_details": [
+        {
+            "query": "Patient presents with headache, stiff neck, and high fever.",
+            "execution_seconds": 48.35,
+            "success": true,
+            "confidence": 95.0,
+            "hallucination": 0.18,
+            "emergency_flag": false
+        },
+        {
+            "query": "Patient reports chronic lower back pain radiating down the left leg.",
+            "execution_seconds": 29.29,
+            "success": true,
+            "confidence": 95.0,
+            "hallucination": 0.1,
+            "emergency_flag": false
+        },
+        {
+            "query": "Sharp abdominal pain migrating to the lower right quadrant.",
+            "execution_seconds": 25.29,
+            "success": true,
+            "confidence": 93,
+            "hallucination": 0.34,
+            "emergency_flag": false
+        }
+    ]
+}
