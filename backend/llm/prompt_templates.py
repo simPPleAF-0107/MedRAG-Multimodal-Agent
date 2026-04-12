@@ -78,7 +78,7 @@ CRITICAL: Do NOT fabricate medical claims. If the retrieved evidence does not co
 NO-FABRICATION CHECKLIST (apply before outputting):
 - Every clinical claim MUST have an [Evidence], [Clinical Reasoning], or [No Evidence Available] tag
 - If you find yourself writing a specific percentage, study name, or statistic: VERIFY it is in the evidence. If not, remove it.
-- If the evidence discusses a DIFFERENT condition than the query, note the mismatch explicitly
+- CRITICAL EXCEPTION: If the retrieved evidence describes a condition that does NOT match the patient's symptoms (e.g. evidence says Paronychia but patient symptoms strongly indicate Cellulitis), DO NOT force the diagnosis to fit the evidence. You MUST rely on your [Clinical Reasoning] to provide the correct diagnosis and explicitly state that the retrieved evidence was less relevant. This is excellent clinical judgment.
 - Prefer "further investigation needed" over confident claims when evidence is weak"""
 
 REPORT_PROMPT_TEMPLATE = """You are generating a final clinical report based on a prior diagnosis reasoning.

@@ -58,16 +58,47 @@ class TextRetriever:
             return expanded
         return query
     
+    def _guess_specialty(self, query: str) -> str | None:
+        """Guess the target specialty from the query to enable filtered retrieval."""
+        query_lower = query.lower()
+        specialty_keywords = {
+            "Cardiology": ["heart", "cardiac", "cardiovascular", "bp", "hypertension", "afib", "ecg"],
+            "Neurology": ["brain", "stroke", "seizure", "neurological", "nerve", "headache", "migraine"],
+            "Oncology": ["cancer", "tumor", "neoplasm", "chemo", "oncology", "malignancy"],
+            "Pulmonology": ["lung", "respiratory", "asthma", "copd", "breathing", "pneumonia"],
+            "Gastroenterology": ["stomach", "gi", "liver", "bowel", "hepatic", "gastric", "reflux"],
+            "Endocrinology": ["diabetes", "thyroid", "blood sugar", "hormone", "endocrine", "insulin"],
+            "Nephrology": ["kidney", "renal", "dialysis", "gfr", "nephropathy"],
+            "Rheumatology": ["joint", "arthritis", "rheumatoid", "lupus", "autoimmune", "gout"],
+            "Infectious Disease": ["infection", "fever", "antibiotic", "sepsis", "virus", "bacterial"],
+            "Dermatology": ["skin", "rash", "lesion", "melanoma", "dermatitis", "eczema"],
+            "Ophthalmology": ["eye", "vision", "retina", "glaucoma", "visual"],
+            "Pediatrics": ["child", "pediatric", "infant", "neonatal", "baby", "toddler"],
+            "Psychiatry": ["depression", "anxiety", "psychiatric", "mental", "schizophrenia", "bipolar"],
+            "Emergency Medicine": ["trauma", "emergency", "crash", "resuscitation", "bleeding", "shock"],
+            "Obstetrics": ["pregnancy", "pregnant", "labor", "maternal", "fetal", "delivery"],
+        }
+        for spec, keywords in specialty_keywords.items():
+            if any(kw in query_lower for kw in keywords):
+                return spec
+        return None
+
     async def retrieve(self, query: str, top_k: int = 10, use_hyde: bool = True) -> list[dict]:
         """
-        Multi-strategy retrieval pipeline:
+        Multi-strategy retrieval pipeline with optional specialty filtering:
         1. Expand query with medical entities
         2. Generate HyDE hypothetical document
-        3. Run dense (Qdrant) + sparse (BM25) in parallel
-        4. Fuse results with RRF
+        3. Guess target specialty from query
+        4. Run dense (Qdrant with filter) + sparse (BM25) in parallel
+        5. Fuse results with RRF
         """
         # Step 1: Medical entity expansion for BM25
         expanded_query = self._expand_query_with_entities(query)
+        
+        # Step 2: Guess specialty for payload filtering
+        specialty_filter = self._guess_specialty(query)
+        if specialty_filter:
+            logger.info(f"Retriever: Applied specialty filter -> {specialty_filter}")
         
         # Step 2: HyDE for dense search
         search_query = query
@@ -79,9 +110,11 @@ class TextRetriever:
         # Step 3: Parallel dense + sparse retrieval
         async def get_dense():
             query_embedding = await text_embedder.embed_text(search_query)
-            results = await vector_store.query_text(
+            # Use filtered query method
+            results = await vector_store.query_text_filtered(
                 query_embedding=query_embedding,
-                n_results=top_k
+                n_results=top_k * 2, # Get more dense results to ensure we have enough post-filtering
+                specialty=specialty_filter
             )
             formatted = []
             if results and results.get("documents") and results["documents"][0]:

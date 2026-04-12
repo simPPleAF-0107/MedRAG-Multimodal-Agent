@@ -58,7 +58,7 @@ STRICT SCORING RULES:
    - 0.40-0.60: Contains claims that clearly go beyond evidence
    - 0.60-0.80: Contains claims that contradict evidence
    - 0.80-1.0: Fabricated data, invented studies, or dangerous misinformation
-6. If evidence is on a DIFFERENT TOPIC: score 0.15-0.25 (retrieval mismatch, not hallucination)
+6. CRITICAL EXCEPTION FOR CLINICAL REASONING: If the retrieved evidence describes a condition that poorly matches the patient's symptoms, and the LLM explicitly uses [Clinical Reasoning] to diagnose a more accurate condition, DO NOT flag this as a hallucination. This is highly desired medical judgment. Score this scenario as 0.0-0.15 depending on clinical accuracy.
 
 IMPORTANT: Be PRECISE. Do not round to convenient numbers like 0.1 or 0.2. Give exact scores like 0.07 or 0.13.
 
