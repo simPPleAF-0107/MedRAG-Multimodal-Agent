@@ -39,7 +39,7 @@ const Register = () => {
             const res = await registerPatient(payload);
             if (res.status === 'success') {
                 localStorage.setItem('user', JSON.stringify(res));
-                navigate('/');
+                navigate('/dashboard');
             }
         } catch (err) {
             setError(err.message);
@@ -82,10 +82,13 @@ const Register = () => {
     };
 
     return (
-        <div className="min-h-screen bg-transparent flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans relative overflow-x-hidden">
+        <div className="min-h-screen bg-[#04060C] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans relative overflow-x-hidden">
             {/* Ambient Background Glow */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-500/20 rounded-full blur-[100px] pointer-events-none animate-float"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none animate-float-delayed"></div>
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-cyan-500/8 rounded-full blur-[150px] animate-pulse" />
+                <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-600/6 rounded-full blur-[180px] animate-pulse" style={{ animationDelay: '3s' }} />
+                <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
+            </div>
 
             <motion.div 
                 initial={{ y: -20, opacity: 0 }}
@@ -96,12 +99,13 @@ const Register = () => {
                 <div className="flex justify-center mb-6">
                     <motion.div 
                         whileHover={{ scale: 1.05 }}
-                        className="bg-gradient-to-tr from-brand-600 to-brand-400 p-4 rounded-2xl shadow-neon animate-pulse-glow"
+                        className="p-4 rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-[0_8px_40px_rgba(0,212,255,0.2)]"
                     >
-                        <Activity className="w-12 h-12 text-deepSpace" />
+                        <Activity className="w-10 h-10 text-white" />
                     </motion.div>
                 </div>
-                <h2 className="text-center text-4xl font-extrabold text-white text-glow tracking-wide">Patient Portal Setup</h2>
+                <h2 className="text-center text-4xl font-black text-white tracking-wider">Patient Portal Setup</h2>
+                <p className="text-center text-sm text-gray-500 tracking-widest uppercase mt-2">Create Your Account</p>
             </motion.div>
 
             <motion.div 
@@ -110,7 +114,7 @@ const Register = () => {
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="mt-8 sm:mx-auto sm:w-full sm:max-w-2xl relative z-10"
             >
-                <div className="glass-panel-heavy py-8 px-6 sm:px-10">
+                <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/[0.06] rounded-3xl py-8 px-6 sm:px-10 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
                     
                     {/* Stepper Header */}
                     <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-6 relative">

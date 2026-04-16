@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from backend.database.db import get_db
-from backend.core.pipeline import core_pipeline
+from backend.core.agent_workflow import core_pipeline
 from backend.rag.image.image_processor import image_processor
 from backend.api.deps import get_current_doctor, get_current_active_user, get_optional_user
 from backend.database.models import User

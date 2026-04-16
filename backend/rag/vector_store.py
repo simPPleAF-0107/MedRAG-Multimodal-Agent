@@ -14,8 +14,13 @@ class VectorStore:
         Creates text and image collections with Cosine similarity space.
         Adds payload field indexes for filtered retrieval by specialty, source, category.
         """
-        os.makedirs(settings.QDRANT_DB_DIR, exist_ok=True)
-        self.client = QdrantClient(path=settings.QDRANT_DB_DIR)
+        # Connect to Docker Qdrant if URL is set, otherwise use local file mode
+        if settings.QDRANT_URL:
+            logger.info(f"Connecting to Qdrant server at {settings.QDRANT_URL}")
+            self.client = QdrantClient(url=settings.QDRANT_URL)
+        else:
+            os.makedirs(settings.QDRANT_DB_DIR, exist_ok=True)
+            self.client = QdrantClient(path=settings.QDRANT_DB_DIR)
         
         self.text_collection_name = "text_embeddings"
         self.image_collection_name = "image_embeddings"

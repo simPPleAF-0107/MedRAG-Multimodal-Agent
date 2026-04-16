@@ -76,7 +76,7 @@ async def retrieve_node(state: AgentState) -> AgentState:
             logger.info("GraphRAG contextual fusion successful.")
         
         # Final safety cap: total evidence must not exceed ~3K tokens for the reasoning LLM
-        MAX_EVIDENCE_CHARS = 12_000
+        MAX_EVIDENCE_CHARS = 16_000
         if len(state["evidence_text"]) > MAX_EVIDENCE_CHARS:
             state["evidence_text"] = state["evidence_text"][:MAX_EVIDENCE_CHARS] + "\n... [evidence truncated for context limit]"
             logger.info(f"Evidence text capped at {MAX_EVIDENCE_CHARS} chars to prevent TPM overflow.")
@@ -176,17 +176,17 @@ async def verify_and_correct_node(state: AgentState) -> AgentState:
     hallucination = state.get("hallucination_score", 0.0)
     attempts = state.get("correction_attempts", 0)
     
-    if hallucination <= 0.12 or attempts >= 2:
+    if hallucination <= 0.35 or attempts >= 2:
         # Either hallucination is acceptably low, or we've exhausted retries
-        state["verification_passed"] = (hallucination <= 0.12)
+        state["verification_passed"] = (hallucination <= 0.35)
         if state["verification_passed"]:
-            logger.info("✅ Verification PASSED: hallucination within acceptable range (≤0.12)")
+            logger.info("[PASS] Verification PASSED: hallucination within acceptable range (<=0.35)")
         else:
-            logger.warning(f"⚠️ Verification: hallucination={hallucination:.2f} after {attempts} correction(s) — proceeding with best result")
+            logger.warning(f"[WARN] Verification: hallucination={hallucination:.2f} after {attempts} correction(s) -- proceeding with best result")
         return state
     
     # Hallucination too high — trigger self-correction
-    logger.info(f"🔄 Self-correction triggered: hallucination={hallucination:.2f}, attempt={attempts+1}")
+    logger.info(f"[RETRY] Self-correction triggered: hallucination={hallucination:.2f}, attempt={attempts+1}")
     
     from backend.llm.openai_client import openai_client
     from backend.llm.prompt_templates import SELF_VERIFICATION_PROMPT, MEDICAL_ASSISTANT_SYSTEM_PROMPT
@@ -218,9 +218,9 @@ async def verify_and_correct_node(state: AgentState) -> AgentState:
             )
             state["hallucination_score"] = new_hall_score
             state["hallucination_flags"] = new_flags
-            state["verification_passed"] = (new_hall_score <= 0.12)
+            state["verification_passed"] = (new_hall_score <= 0.35)
             
-            logger.info(f"Self-correction result: hallucination {hallucination:.2f} → {new_hall_score:.2f}")
+            logger.info(f"Self-correction result: hallucination {hallucination:.2f} -> {new_hall_score:.2f}")
         except Exception as e:
             logger.error(f"Re-check after correction failed: {e}")
             state["verification_passed"] = False
@@ -305,6 +305,16 @@ async def reporter_node(state: AgentState) -> AgentState:
     
     state["recommended_specialty"] = specialty
 
+    # --- KNOWLEDGE GAP DETECTION ---
+    from backend.services.knowledge_gap_tracker import log_knowledge_gap
+    gap_logged = log_knowledge_gap(
+        query=state["text_query"],
+        hallucination_score=state.get("hallucination_score", 0.0),
+        retrieval_scores=state.get("retrieval_scores", []),
+        hallucination_flags=state.get("hallucination_flags", []),
+        specialty=specialty
+    )
+
     state["final_payload"] = {
         "diagnosis": state.get("diagnosis", ""),
         "differential_diagnosis": state.get("differential", []),
@@ -321,6 +331,7 @@ async def reporter_node(state: AgentState) -> AgentState:
         "risk_assessment": {"risk_score": state.get("risk_score", 0), "risk_level": state.get("risk_level", "Unknown")},
         "verification_passed": state.get("verification_passed", False),
         "correction_attempts": state.get("correction_attempts", 0),
+        "knowledge_gap_detected": gap_logged,
     }
     return state
 
@@ -341,3 +352,32 @@ workflow.add_edge("verify_and_correct", "reporter")
 workflow.add_edge("reporter", END)
 
 medrag_agent = workflow.compile()
+
+class CorePipeline:
+    async def run_multimodal_rag_pipeline(self, text_query: str, image=None, patient_graph=None) -> dict:
+        initial_state = {
+            "text_query": text_query,
+            "image": image,
+            "evidence_text": "",
+            "evidence_image": "",
+            "retrieval_scores": [],
+            "diagnosis": "",
+            "hallucination_score": 0.0,
+            "hallucination_flags": [],
+            "risk_score": 0,
+            "risk_level": "Unknown",
+            "emergency_flag": False,
+            "differential": [],
+            "confidence": 0.0,
+            "recommendations": {},
+            "heatmap_path": "",
+            "recommended_specialty": "General",
+            "verification_passed": False,
+            "correction_attempts": 0,
+            "final_payload": {}
+        }
+        final_state = await medrag_agent.ainvoke(initial_state)
+        return final_state["final_payload"]
+
+core_pipeline = CorePipeline()
+

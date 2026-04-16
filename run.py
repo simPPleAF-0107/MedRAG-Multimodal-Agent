@@ -40,9 +40,14 @@ def main():
 
     # ── Start Backend ──
     print("\n[1/2] Starting MedRAG Backend (FastAPI)…")
-    # Use --no-reload on Windows to avoid "Terminate batch job?" prompt
+    # Auto-detect local venv to prevent global system module errors
+    venv_python = os.path.join(ROOT, "venv", "Scripts", "python.exe")
+    if not os.path.exists(venv_python):
+        print("      ⚠️ Warning: No local 'venv' found. Falling back to global python...")
+        venv_python = sys.executable
+
     backend = subprocess.Popen(
-        f'"{sys.executable}" -m uvicorn backend.main:app --host 127.0.0.1 --port 8000',
+        f'"{venv_python}" -m uvicorn backend.main:app --host 127.0.0.1 --port 8000',
         shell=True,
         cwd=ROOT,
     )

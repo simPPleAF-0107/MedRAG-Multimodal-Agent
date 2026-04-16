@@ -11,8 +11,10 @@ import os
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# IMPORTANT: Import config FIRST to force HuggingFace cache into the D: drive project folder
+from backend.config import settings
 
-from backend.core.pipeline import CorePipeline
+from backend.core.agent_workflow import CorePipeline
 import logging
 
 # Suppress heavy external logs
@@ -71,5 +73,4 @@ async def run_full_benchmark():
     print("=" * 70)
 
 if __name__ == "__main__":
-    from backend.config import settings
     asyncio.run(run_full_benchmark())

@@ -7,13 +7,14 @@ env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 load_dotenv(dotenv_path=env_path)
 
 # ── Force HuggingFace cache into project folder (must be set BEFORE HF imports) ──
+# ── Force HuggingFace cache into project folder (must be set BEFORE HF imports) ──
 _project_root = os.path.dirname(os.path.dirname(__file__))
 _hf_cache = os.path.join(_project_root, "models", "huggingface")
 os.makedirs(_hf_cache, exist_ok=True)
-os.environ.setdefault("HF_HOME", _hf_cache)
-os.environ.setdefault("HF_DATASETS_CACHE", os.path.join(_hf_cache, "datasets"))
-os.environ.setdefault("TRANSFORMERS_CACHE", os.path.join(_hf_cache, "hub"))
-os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", os.path.join(_hf_cache, "hub"))
+os.environ["HF_HOME"] = _hf_cache
+os.environ["HF_DATASETS_CACHE"] = os.path.join(_hf_cache, "datasets")
+os.environ["TRANSFORMERS_CACHE"] = os.path.join(_hf_cache, "hub")
+os.environ["SENTENCE_TRANSFORMERS_HOME"] = os.path.join(_hf_cache, "hub")
 
 class Settings(BaseSettings):
     """
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
 
     # Vector DB Configuration
     QDRANT_DB_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "vector-db")
+    QDRANT_URL: str = ""  # Set to "http://localhost:6333" for Docker Qdrant, empty = local file mode
     TEXT_EMBEDDING_MODEL: str = "all-mpnet-base-v2"
     IMAGE_EMBEDDING_MODEL: str = "openai/clip-vit-base-patch32"  # Example CLIP model
 

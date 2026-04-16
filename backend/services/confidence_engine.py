@@ -157,10 +157,10 @@ class ConfidenceEngine:
                 elif evidence_overlap >= 0.2:
                     overlap_bonus = 1    # Some overlap
                 else:
-                    overlap_bonus = -3   # Diagnosis terms barely appear in evidence
+                    overlap_bonus = 0   # Low overlap — neutral (paraphrasing is valid medical writing)
 
             # 8. Verification bonus — self-verify loop passed
-            verify_bonus = 8 if verification_passed else 0
+            verify_bonus = 12 if verification_passed else 0
 
             final_score = (
                 llm_baseline

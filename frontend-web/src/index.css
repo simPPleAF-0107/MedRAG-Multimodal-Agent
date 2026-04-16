@@ -8,16 +8,16 @@
 @layer base {
   :root {
     /* ── Core Brand ───────────────────────────────────────────────── */
-    --primary:        #3A0CA3;
-    --primary-hover:  #4B1CC4;
-    --primary-active: #2E0882;
+    --primary:        #22d3ee;
+    --primary-hover:  #00D4FF;
+    --primary-active: #0ea5e9;
     --secondary:      #4361EE;
     --secondary-hover:#5A73F0;
     --secondary-active:#344ECC;
     --accent-cyan:    #4CC9F0;
     --accent-mint:    #A3F7FF;
 
-    /* ── Neutrals ─────────────────────────────────────────────────── */
+    /* ── Light Mode Neutrals ──────────────────────────────────────── */
     --background:     #F8F9FF;
     --surface:        #FFFFFF;
     --surface-subtle: #F2F4FA;
@@ -27,18 +27,34 @@
     --text-muted:     #7A7A7A;
 
     /* ── Semantic ─────────────────────────────────────────────────── */
-    --success:        #2ECC71;
+    --success:        #10E8A0;
     --success-bg:     #E8F9F0;
-    --warning:        #F1C40F;
+    --warning:        #F5A623;
     --warning-bg:     #FFF8E1;
-    --error:          #E74C3C;
+    --error:          #FF4567;
     --error-bg:       #FDECEA;
-    --info:           #3498DB;
+    --info:           #22d3ee;
     --info-bg:        #E8F4FD;
 
     /* ── Animation Curves ─────────────────────────────────────────── */
     --spring:         cubic-bezier(0.34, 1.56, 0.64, 1);
     --smooth:         cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* ── Dark Mode Neutrals (Obsidian & Cyan adjusted) ────────────────────── */
+  html.dark {
+    --background:     #04060C;
+    --surface:        #0A0D17;
+    --surface-subtle: #101424;
+    --border:         #192036;
+    --text-primary:   #FFFFFF;
+    --text-secondary: #D1D5DB;
+    --text-muted:     #9CA3AF;
+    
+    --success-bg:     rgba(16,232,160,0.12);
+    --warning-bg:     rgba(245,166,35,0.12);
+    --error-bg:       rgba(255,69,103,0.12);
+    --info-bg:        rgba(34,211,238,0.12);
   }
 
   * {

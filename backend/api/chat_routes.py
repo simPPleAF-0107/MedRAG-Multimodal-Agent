@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database.db import get_db
 from backend.agents.router_agent import agentic_router
 from backend.llm.openai_client import openai_client
-from backend.core.pipeline import core_pipeline
+from backend.core.agent_workflow import core_pipeline
 from backend.database import crud
 
 router = APIRouter(
@@ -13,10 +13,7 @@ router = APIRouter(
     tags=["chat"]
 )
 
-class ChatMessage(BaseModel):
-    message: str
-    patient_id: Optional[int] = None
-    session_id: Optional[str] = None
+from backend.schemas.chat import ChatMessage
 
 @router.post("/")
 async def chat(
@@ -42,23 +39,14 @@ async def chat(
         return {"reply": reply, "route": category}
         
     elif category == "summarization":
-        # Attempt to fetch patient history and summarize
         if patient_id:
-            patient = await crud.get_patient_history(db, patient_id=patient_id)
-            if patient:
-                history_text = f"Patient: {patient.first_name} {patient.last_name}\n"
-                for r in patient.reports:
-                    history_text += f"- Report: {r.chief_complaint} → {r.final_report[:200]}\n"
-                
-                reply = await openai_client.generate_completion(
-                    prompt=f"Summarize this patient's medical history concisely:\n{history_text}",
-                    system_prompt="You are a medical summarization assistant. Provide concise, structured summaries.",
-                    use_cache=True
-                )
+            from backend.services.patient_summarizer import summarize_patient_history
+            reply = await summarize_patient_history(db, patient_id)
+            if reply:
                 return {"reply": reply, "route": category}
         
         return {
-            "reply": "Please specify a patient ID to summarize their history, or ask a medical question.",
+            "reply": "Please specify a valid patient ID to summarize their history, or ask a medical question.",
             "route": category
         }
         

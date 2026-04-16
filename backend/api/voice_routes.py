@@ -2,7 +2,7 @@ import os
 import shutil
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from backend.llm.openai_client import openai_client
-from backend.core.pipeline import core_pipeline
+from backend.core.agent_workflow import core_pipeline
 
 router = APIRouter(prefix="/voice", tags=["Voice Symptom Recognition"])
 

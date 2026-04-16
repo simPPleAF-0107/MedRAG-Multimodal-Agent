@@ -11,7 +11,7 @@ class LLMReranker:
     Now returns relevance scores alongside the reranked chunks for confidence calibration.
     """
     
-    async def rerank(self, query: str, chunks: list[dict], top_k: int = 5) -> list[dict]:
+    async def rerank(self, query: str, chunks: list[dict], top_k: int = 12) -> list[dict]:
         if not chunks:
             return []
             

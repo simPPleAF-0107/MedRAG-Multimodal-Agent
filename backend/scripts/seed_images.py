@@ -147,7 +147,7 @@ async def seed_slake(max_images: int = 642):
 
     print(f"\n🖼️  [3/4] Loading SLAKE-VQA (up to {max_images} images)…")
     try:
-        ds = load_dataset("mdwiratathya/SLAKE", split="train", trust_remote_code=True)
+        ds = load_dataset("mdwiratathya/SLAKE", split="train")
     except Exception as e:
         print(f"  ❌ Failed to load SLAKE: {e}")
         return 0
@@ -191,7 +191,7 @@ async def seed_roco(max_images: int = 5000):
 
     print(f"\n🖼️  [4/4] Loading ROCO (up to {max_images} images)…")
     try:
-        ds = load_dataset("eltorio/ROCO", split="train", trust_remote_code=True)
+        ds = load_dataset("eltorio/ROCO", split="train")
     except Exception as e:
         print(f"  ❌ Failed to load ROCO: {e}")
         return 0

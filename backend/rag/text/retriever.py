@@ -83,7 +83,7 @@ class TextRetriever:
                 return spec
         return None
 
-    async def retrieve(self, query: str, top_k: int = 10, use_hyde: bool = True) -> list[dict]:
+    async def retrieve(self, query: str, top_k: int = 15, use_hyde: bool = True) -> list[dict]:
         """
         Multi-strategy retrieval pipeline with optional specialty filtering:
         1. Expand query with medical entities
@@ -110,11 +110,12 @@ class TextRetriever:
         # Step 3: Parallel dense + sparse retrieval
         async def get_dense():
             query_embedding = await text_embedder.embed_text(search_query)
-            # Use filtered query method
-            results = await vector_store.query_text_filtered(
+            # Always use unfiltered search — the LLM reranker handles relevance filtering.
+            # A hard specialty filter blocks cross-domain conditions (e.g. diabetic footlesion
+            # spans Endocrinology + Dermatology + Infectious Disease simultaneously).
+            results = await vector_store.query_text(
                 query_embedding=query_embedding,
-                n_results=top_k * 2, # Get more dense results to ensure we have enough post-filtering
-                specialty=specialty_filter
+                n_results=top_k * 2,
             )
             formatted = []
             if results and results.get("documents") and results["documents"][0]:

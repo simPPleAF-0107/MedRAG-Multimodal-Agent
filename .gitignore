@@ -50,3 +50,8 @@ backend/logs/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Large Android SDK tool archives
+frontend-mobile/cmdline-tools.zip
+frontend-mobile/*.zip
+*.zip

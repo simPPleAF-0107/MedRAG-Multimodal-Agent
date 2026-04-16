@@ -27,7 +27,7 @@ class HallucinationChecker:
         overlap = evidence_overlap_score(response, retrieved_context)
         # Invert: high overlap = low hallucination
         deterministic_score = round(max(0.0, 1.0 - overlap), 3)
-        logger.info(f"Hallucination Stage 1 (deterministic): overlap={overlap:.2f} → score={deterministic_score:.2f}")
+        logger.info(f"Hallucination Stage 1 (deterministic): overlap={overlap:.2f} -> score={deterministic_score:.2f}")
 
         if not retrieved_context or len(retrieved_context.strip()) < 20:
             return 0.15, [
@@ -58,7 +58,17 @@ STRICT SCORING RULES:
    - 0.40-0.60: Contains claims that clearly go beyond evidence
    - 0.60-0.80: Contains claims that contradict evidence
    - 0.80-1.0: Fabricated data, invented studies, or dangerous misinformation
-6. CRITICAL EXCEPTION FOR CLINICAL REASONING: If the retrieved evidence describes a condition that poorly matches the patient's symptoms, and the LLM explicitly uses [Clinical Reasoning] to diagnose a more accurate condition, DO NOT flag this as a hallucination. This is highly desired medical judgment. Score this scenario as 0.0-0.15 depending on clinical accuracy.
+6. CRITICAL EXCEPTION — EVIDENCE TOPIC MISMATCH: If the retrieved evidence is clearly about a DIFFERENT medical
+   condition than the patient query (e.g. evidence describes paronychia but patient has a diabetic foot lesion,
+   or evidence is about asthma but patient has cardiac chest pain), then:
+   - The model is EXPECTED to use [Clinical Reasoning] instead of citing the irrelevant evidence
+   - This is CORRECT and SAFE clinical judgment, NOT a hallucination
+   - Score such responses 0.05-0.20 depending on medical accuracy of the [Clinical Reasoning] claims
+   - If the model correctly identifies the mismatch and still provides an accurate diagnosis: score 0.05-0.10
+   - Only penalize if the [Clinical Reasoning] claims themselves are medically inaccurate or dangerous
+7. CRITICAL EXCEPTION FOR CLINICAL REASONING: If the retrieved evidence describes a condition that poorly matches
+   the patient's symptoms, and the LLM uses [Clinical Reasoning] to diagnose a more accurate condition, DO NOT
+   flag this as a hallucination. Score this scenario as 0.0-0.15 depending on clinical accuracy.
 
 IMPORTANT: Be PRECISE. Do not round to convenient numbers like 0.1 or 0.2. Give exact scores like 0.07 or 0.13.
 
@@ -104,3 +114,4 @@ Return brief, specific flags on subsequent lines (what was flagged and why)."""
 
 async def detect_hallucination(response, retrieved_context):
     return await HallucinationChecker.detect_hallucination(response, retrieved_context)
+

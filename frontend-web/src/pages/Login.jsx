@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Activity, Lock, Mail, ArrowRight, UserSquare2, Stethoscope } from 'lucide-react';
+import { Activity, Lock, Mail, ArrowRight, UserSquare2, Stethoscope, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { loginUser } from '../services/apiClient';
 
@@ -9,6 +9,7 @@ const Login = () => {
     const [role, setRole] = useState('patient');
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -20,114 +21,140 @@ const Login = () => {
             const res = await loginUser(identifier, password, role);
             if (res.status === 'success') {
                 localStorage.setItem('user', JSON.stringify(res));
-                navigate('/');
+                navigate('/dashboard');
             }
         } catch (err) { setError(err.message); }
         finally { setLoading(false); }
     };
 
     return (
-        <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #F8F9FF 0%, #E8EAFF 50%, #F0F8FF 100%)' }}>
+        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#04060C]">
 
-            {/* Soft floating orbs */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-[120px] pointer-events-none animate-float"
-                style={{ background: 'rgba(58,12,163,0.08)' }} />
-            <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] rounded-full blur-[140px] pointer-events-none animate-float-delayed"
-                style={{ background: 'rgba(67,97,238,0.06)' }} />
+            {/* Ambient background effects */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-cyan-500/8 rounded-full blur-[150px] animate-pulse" />
+                <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-600/6 rounded-full blur-[180px] animate-pulse" style={{ animationDelay: '3s' }} />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/4 rounded-full blur-[200px]" />
+                {/* Subtle grid */}
+                <div className="absolute inset-0" style={{
+                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)',
+                    backgroundSize: '50px 50px',
+                }} />
+            </div>
 
-            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.6, ease: 'easeOut' }} className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-                <motion.div whileHover={{ scale: 1.05 }} className="flex justify-center mb-4">
-                    <div className="p-4 rounded-2xl" style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}>
-                        <Activity className="w-14 h-14 text-white" />
-                    </div>
+            <div className="relative z-10 w-full max-w-md px-6">
+                {/* Logo & Brand */}
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6, ease: 'easeOut' }} className="text-center mb-10">
+
+                    <motion.div whileHover={{ scale: 1.05 }} className="inline-flex mb-6">
+                        <div className="p-4 rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-[0_8px_40px_rgba(0,212,255,0.2)]">
+                            <Activity className="w-10 h-10 text-white" />
+                        </div>
+                    </motion.div>
+
+                    <h1 className="text-4xl font-black tracking-wider text-white mb-2">MedRAG</h1>
+                    <p className="text-sm font-medium text-gray-500 tracking-widest uppercase">Welcome Back</p>
                 </motion.div>
-                <h2 className="mt-2 text-center text-5xl font-black tracking-widest" style={{ color: 'var(--text-primary)' }}>MedRAG</h2>
-                <p className="mt-3 text-center text-lg font-medium tracking-wide" style={{ color: 'var(--text-muted)' }}>Next-Gen Clinical Intelligence</p>
-            </motion.div>
 
-            <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
-                className="mt-10 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-                <div className="glass-panel-heavy py-10 px-6 sm:px-12">
+                {/* Auth Card */}
+                <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
+                    className="bg-white/[0.03] backdrop-blur-2xl border border-white/[0.06] rounded-3xl p-8 sm:p-10 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
 
                     {/* Role Toggle */}
-                    <div className="flex p-1 rounded-xl mb-8 relative overflow-hidden" style={{ background: 'var(--surface-subtle)', border: '1px solid var(--border)' }}>
+                    <div className="flex p-1 rounded-2xl mb-8 bg-white/[0.04] border border-white/[0.06] relative overflow-hidden">
                         <button type="button" onClick={() => setRole('patient')}
-                            className={`flex flex-1 justify-center items-center py-2.5 rounded-lg text-sm font-semibold transition-all z-10 ${role === 'patient' ? 'text-white' : ''}`}
-                            style={role !== 'patient' ? { color: 'var(--text-muted)' } : {}}>
+                            className={`flex flex-1 justify-center items-center py-3 rounded-xl text-sm font-bold transition-all z-10 ${role === 'patient' ? 'text-[#04060C]' : 'text-gray-500 hover:text-gray-300'}`}>
                             <UserSquare2 className="w-4 h-4 mr-2" />Patient
                         </button>
                         <button type="button" onClick={() => setRole('doctor')}
-                            className={`flex flex-1 justify-center items-center py-2.5 rounded-lg text-sm font-semibold transition-all z-10 ${role === 'doctor' ? 'text-white' : ''}`}
-                            style={role !== 'doctor' ? { color: 'var(--text-muted)' } : {}}>
+                            className={`flex flex-1 justify-center items-center py-3 rounded-xl text-sm font-bold transition-all z-10 ${role === 'doctor' ? 'text-[#04060C]' : 'text-gray-500 hover:text-gray-300'}`}>
                             <Stethoscope className="w-4 h-4 mr-2" />Doctor
                         </button>
                         <motion.div
-                            className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg"
+                            className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl"
                             initial={false}
                             animate={{ x: role === 'patient' ? '0%' : '100%', left: role === 'patient' ? '4px' : '0px' }}
                             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                            style={{ background: role === 'patient' ? 'var(--primary)' : 'var(--secondary)' }}
+                            style={{ background: 'linear-gradient(135deg, #00D4FF, #3B82F6)' }}
                         />
                     </div>
 
-                    <form className="space-y-6" onSubmit={handleLogin}>
+                    <form className="space-y-5" onSubmit={handleLogin}>
                         {error && (
                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                                className="p-3 rounded-xl text-sm text-center"
-                                style={{ background: 'var(--error-bg)', border: '1px solid rgba(231,76,60,0.3)', color: 'var(--error)' }}>
+                                className="p-4 rounded-2xl text-sm text-center bg-red-500/10 border border-red-500/20 text-red-400 font-medium">
                                 {error}
                             </motion.div>
                         )}
 
+                        {/* Email Input */}
                         <div>
-                            <label className="block text-sm font-medium mb-1 ml-1" style={{ color: 'var(--text-secondary)' }}>
-                                {role === 'doctor' ? 'Provider Email' : 'Email or Phone Number'}
+                            <label className="block text-xs font-bold text-gray-400 mb-2 ml-1 tracking-wider uppercase">
+                                {role === 'doctor' ? 'Provider Email' : 'Email Address'}
                             </label>
-                            <div className="relative rounded-xl group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors" style={{ color: 'var(--text-muted)' }}>
-                                    <Mail className="h-5 w-5" />
-                                </div>
+                            <div className="relative group">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600 group-focus-within:text-cyan-400 transition-colors" />
                                 <input type="text" required value={identifier} onChange={(e) => setIdentifier(e.target.value)}
-                                    className="glass-input pl-11"
-                                    placeholder={role === 'doctor' ? 'dr.smith@medrag.com' : 'john.doe@email.com'} />
+                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl pl-12 pr-5 py-4 text-white text-sm font-medium placeholder:text-gray-600 focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_20px_rgba(0,212,255,0.1)] transition-all"
+                                    placeholder={role === 'doctor' ? 'dr.arjun.sharma@medrag.com' : 'john.smith@email.com'} />
                             </div>
                         </div>
 
+                        {/* Password Input */}
                         <div>
-                            <label className="block text-sm font-medium mb-1 ml-1" style={{ color: 'var(--text-secondary)' }}>Password</label>
-                            <div className="relative rounded-xl group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
-                                    <Lock className="h-5 w-5" />
-                                </div>
-                                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                                    className="glass-input pl-11" placeholder="••••••••" />
+                            <label className="block text-xs font-bold text-gray-400 mb-2 ml-1 tracking-wider uppercase">Password</label>
+                            <div className="relative group">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600 group-focus-within:text-cyan-400 transition-colors" />
+                                <input type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl pl-12 pr-12 py-4 text-white text-sm font-medium placeholder:text-gray-600 focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_20px_rgba(0,212,255,0.1)] transition-all"
+                                    placeholder="••••••••" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 transition-colors">
+                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
                             </div>
                         </div>
 
-                        <div className="pt-2">
-                            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                        {/* Submit */}
+                        <div className="pt-3">
+                            <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
                                 type="submit" disabled={loading || !identifier || !password}
-                                className="w-full flex justify-center items-center py-3 px-4 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all"
-                                style={{ background: role === 'doctor' ? 'var(--secondary)' : 'var(--primary)' }}>
-                                {loading ? 'Authenticating...' : 'Secure Sign In'}
-                                {!loading && <ArrowRight className="ml-2 w-4 h-4" />}
+                                className="w-full flex justify-center items-center py-4 px-6 rounded-2xl text-sm font-black text-[#04060C] disabled:opacity-40 transition-all tracking-wide"
+                                style={{ background: 'linear-gradient(135deg, #00D4FF, #3B82F6)' }}>
+                                {loading ? (
+                                    <span className="flex items-center gap-2">
+                                        <Sparkles className="w-4 h-4 animate-spin" /> Authenticating...
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-2">
+                                        Secure Sign In <ArrowRight className="w-4 h-4" />
+                                    </span>
+                                )}
                             </motion.button>
                         </div>
                     </form>
 
+                    {/* Register Link */}
                     {role === 'patient' && (
-                        <div className="mt-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+                        <div className="mt-8 text-center text-sm text-gray-500">
                             New patient?{' '}
-                            <Link to="/register" className="font-semibold transition-colors hover:underline underline-offset-4" style={{ color: 'var(--primary)' }}>
-                                Create your portal account
+                            <Link to="/register" className="font-bold text-cyan-400 hover:text-cyan-300 transition-colors">
+                                Create your account
                             </Link>
                         </div>
                     )}
-                </div>
-            </motion.div>
+                </motion.div>
+
+                {/* Back to home */}
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+                    className="mt-8 text-center">
+                    <Link to="/" className="text-xs text-gray-600 hover:text-gray-400 transition-colors font-medium tracking-wider uppercase">
+                        ← Back to Home
+                    </Link>
+                </motion.div>
+            </div>
         </div>
     );
 };

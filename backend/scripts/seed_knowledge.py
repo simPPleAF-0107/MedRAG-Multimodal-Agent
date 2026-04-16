@@ -88,41 +88,52 @@ async def seed_pubmedqa():
 
 
 # ═══════════════════════════════════════════════════════════
-# 2. MedQA-USMLE (US clinical board questions)
+# 2. MedQA-USMLE (US clinical board questions) - LOCAL OFFLINE
 # ═══════════════════════════════════════════════════════════
 async def seed_medqa():
-    from datasets import load_dataset
-
-    print("\n📚 [2/4] Loading MedQA-USMLE…")
-    ds = load_dataset("GBaker/MedQA-USMLE-4-options", split="train")
+    import zipfile
+    import json
+    
+    print("\n📚 [2/4] Loading MedQA-USMLE (Local zip)…")
+    zip_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+        "Research", "latest", "MedQA (USMLE).zip"
+    )
+    
+    if not os.path.exists(zip_path):
+        print(f"   ❌ MedQA zip not found at {zip_path}")
+        return 0
 
     count = 0
-    for row in ds:
-        question = row.get("question", "")
-        options = row.get("options", {})
-        answer = row.get("answer", "")
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        with z.open('MedQA-USMLE/questions/US/train.jsonl') as f:
+            for line in f:
+                row = json.loads(line)
+                question = row.get("question", "")
+                options = row.get("options", {})
+                answer = row.get("answer", "")
 
-        if isinstance(options, dict):
-            opts_str = " | ".join([f"{k}: {v}" for k, v in options.items()])
-        elif isinstance(options, list):
-            opts_str = " | ".join([str(o) for o in options])
-        else:
-            opts_str = str(options)
+                if isinstance(options, dict):
+                    opts_str = " | ".join([f"{k}: {v}" for k, v in options.items()])
+                elif isinstance(options, list):
+                    opts_str = " | ".join([str(o) for o in options])
+                else:
+                    opts_str = str(options)
 
-        chunk = f"Clinical Question: {question}\nOptions: {opts_str}\nCorrect Answer: {answer}"
-        if len(chunk.strip()) < 30:
-            continue
+                chunk = f"Clinical Question: {question}\nOptions: {opts_str}\nCorrect Answer: {answer}"
+                if len(chunk.strip()) < 30:
+                    continue
 
-        doc_id = _stable_uuid(f"medqa_{count}")
-        await _embed_and_store(doc_id, chunk, {
-            "source": "MedQA-USMLE",
-            "type": "clinical_reasoning",
-            "question": question[:200],
-        })
+                doc_id = _stable_uuid(f"medqa_{count}")
+                await _embed_and_store(doc_id, chunk, {
+                    "source": "MedQA-USMLE",
+                    "type": "clinical_reasoning",
+                    "question": question[:200],
+                })
 
-        count += 1
-        if count % 500 == 0:
-            print(f"   ✅ MedQA: {count} entries ingested")
+                count += 1
+                if count % 500 == 0:
+                    print(f"   ✅ MedQA: {count} entries ingested")
 
     print(f"   ✅ MedQA complete — {count} entries")
     return count
@@ -135,7 +146,7 @@ async def seed_medmcqa(max_entries: int = 20000):
     from datasets import load_dataset
 
     print(f"\n📚 [3/4] Loading MedMCQA (sampling {max_entries:,} from train)…")
-    ds = load_dataset("openlifescienceai/medmcqa", split="train", trust_remote_code=True)
+    ds = load_dataset("openlifescienceai/medmcqa", split="train")
 
     count = 0
     label_map = {0: "A", 1: "B", 2: "C", 3: "D"}

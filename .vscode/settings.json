@@ -1,3 +1,10 @@
 {
-    "cmake.sourceDirectory": "D:/Projects/College/8th Sem - SDP/MedRAG Multimodal Agent/Prototype/mobile_app/linux"
+    "cmake.sourceDirectory": "D:/Projects/College/8th Sem - SDP/MedRAG Multimodal Agent/Prototype/mobile_app/linux",
+    "java.import.gradle.enabled": false,
+    "java.import.exclusions": [
+        "**/frontend-mobile/android/**",
+        "**/flutter/packages/flutter_tools/gradle/**",
+        "**/pub.dev/**/android/**"
+    ],
+    "css.lint.unknownAtRules": "ignore"
 }

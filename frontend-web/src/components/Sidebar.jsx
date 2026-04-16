@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
     LayoutDashboard, UploadCloud, FileText, MessageSquare,
     Utensils, Activity, Smile, CalendarHeart, ChevronRight,
-    LogOut, CalendarCheck, Cpu, Database, Wifi, WifiOff
+    LogOut, CalendarCheck, Cpu, Database, Wifi, WifiOff, Settings
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -38,17 +38,12 @@ const Sidebar = () => {
     const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
     const links = [
-        { to: '/',             icon: LayoutDashboard, label: 'Overview' },
+        { to: '/dashboard',    icon: LayoutDashboard, label: 'Overview' },
         { to: '/upload',       icon: UploadCloud,     label: 'Diagnostics' },
         { to: '/reports',      icon: FileText,        label: 'Reports' },
         { to: '/chat',         icon: MessageSquare,   label: 'AI Assistant' },
         { to: '/appointments', icon: CalendarCheck,   label: 'Appointments' },
-        ...(!isDoctor ? [
-            { to: '/meal-planner', icon: Utensils,      label: 'Meal Planner' },
-            { to: '/activity',     icon: Activity,       label: 'Activity' },
-            { to: '/mood-tracker', icon: Smile,          label: 'Mood Tracker' },
-            ...(user?.sex === 'Female' ? [{ to: '/cycle-tracker', icon: CalendarHeart, label: 'Cycle Tracker' }] : [])
-        ] : []),
+        { to: '/settings',     icon: Settings,        label: 'Settings' }
     ];
 
     return (
@@ -110,14 +105,14 @@ const Sidebar = () => {
                             <Database size={11} style={{ color: 'var(--info)' }} />
                             <span>Vector DB</span>
                         </div>
-                        <span className="font-medium text-[10px]" style={{ color: 'var(--info)' }}>31K docs</span>
+                        <span className="font-medium text-[10px]" style={{ color: 'var(--info)' }}>137K Embeddings</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
                             <Cpu size={11} style={{ color: 'var(--warning)' }} />
-                            <span>LLM Model</span>
+                            <span>Clinical Engine</span>
                         </div>
-                        <span className="font-medium text-[10px]" style={{ color: '#B8860B' }}>gpt-5.4-mini</span>
+                        <span className="font-medium text-[10px]" style={{ color: '#B8860B' }}>LangGraph + RAG</span>
                     </div>
                 </div>
             </div>

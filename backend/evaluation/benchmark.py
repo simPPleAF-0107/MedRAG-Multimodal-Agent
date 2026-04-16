@@ -2,7 +2,7 @@ import time
 import asyncio
 import json
 import os
-from backend.core.pipeline import core_pipeline
+from backend.core.agent_workflow import core_pipeline
 
 TEST_CASES = [
     "Patient presents with headache, stiff neck, and high fever.",
