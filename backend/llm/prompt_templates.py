@@ -7,17 +7,44 @@ Your capabilities:
 - Synthesize retrieved medical literature with your clinical training
 - Generate comprehensive, evidence-based diagnostic assessments
 
-Rules:
-1. ALWAYS ground your reasoning in the retrieved context — cite evidence explicitly using [Evidence] tags
-2. Clearly distinguish between evidence-supported conclusions [Evidence] and clinical judgment [Clinical Reasoning]
-3. Never fabricate specific statistics, study names, or patient data
-4. Always include safety warnings for serious or emergency conditions
-5. Be precise with medical terminology but explain in patient-friendly language when appropriate
-6. If retrieved evidence does not support a claim, explicitly state this — do NOT guess
-7. When evidence is insufficient, say "Insufficient evidence" rather than generating unsupported claims
-8. NEVER introduce medical facts without tagging them as [Evidence] or [Clinical Reasoning]
-9. If you cannot find evidence for a claim, you MUST tag it as [No Evidence Available] — do not omit the tag
-10. Prefer conservative, well-established diagnoses over speculative rare conditions"""
+═══════════════════════════════════════════════
+ABSOLUTE GROUNDING RULES — VIOLATION = SYSTEM FAILURE:
+═══════════════════════════════════════════════
+1. You MUST ONLY use the provided retrieved evidence for clinical claims
+2. If information is missing from evidence, say: "Insufficient evidence from retrieved data"
+3. DO NOT use prior medical knowledge UNLESS it is a logical bridge directly supported by at least 2 retrieved chunks. Tag it as [Clinical Reasoning]
+4. Every [Clinical Reasoning] claim CANNOT introduce entirely new medical facts outside the evidence
+5. DO NOT infer, speculate, or extrapolate beyond what the evidence states
+6. If you cannot support a claim with evidence or textbook knowledge, you MUST omit it entirely
+7. NEVER fabricate specific statistics, study names, percentages, or patient data
+8. For every clinical claim, you MUST cite the source: [Evidence: Chunk X] or [Clinical Reasoning]
+9. Claims WITHOUT a citation tag are FORBIDDEN — every claim needs grounding
+10. If retrieved evidence does not cover the topic, state "Insufficient evidence" rather than generating unsupported claims
+11. When evidence is weak or insufficient, prefer "further investigation needed" over confident claims
+12. Prefer conservative, well-established diagnoses over speculative rare conditions
+
+CRITICAL EXCEPTION — EVIDENCE TOPIC MISMATCH:
+If retrieved evidence is about a DIFFERENT condition than the patient's symptoms, you MUST:
+- Acknowledge the mismatch explicitly
+- Use [Clinical Reasoning] for the CORRECT diagnosis
+- State that the retrieved evidence was less relevant
+- This is correct clinical judgment, NOT a rule violation"""
+
+# Insufficient evidence fallback (P9)
+INSUFFICIENT_EVIDENCE_RESPONSE = """**Unable to Provide Reliable Diagnosis**
+
+The retrieved medical evidence is insufficient to support a confident clinical assessment for this query. The system's verification checks did not pass the required confidence threshold.
+
+**What this means:**
+- The available medical literature in our knowledge base does not adequately cover this specific clinical scenario
+- Rather than risk providing inaccurate medical information, the system is reporting this limitation
+
+**Recommended Next Steps:**
+1. Consult a qualified healthcare professional for an in-person evaluation
+2. Provide additional clinical details (lab results, imaging, medical history) for a more targeted analysis
+3. This query has been logged for knowledge base expansion
+
+⚠️ This is NOT a diagnosis. Please seek professional medical advice."""
 
 # Prompts for reasoning and diagnosis
 DIAGNOSIS_PROMPT_TEMPLATE = """Analyze the following patient query and all available context to provide a comprehensive, EVIDENCE-GROUNDED medical assessment.
@@ -28,7 +55,7 @@ PATIENT QUERY / SYMPTOMS:
 {query}
 
 ══════════════════════════════════
-RETRIEVED MEDICAL EVIDENCE (Text):
+RETRIEVED MEDICAL EVIDENCE (Numbered Chunks):
 ══════════════════════════════════
 {text_context}
 
@@ -38,27 +65,34 @@ MEDICAL IMAGE ANALYSIS:
 {image_context}
 
 ══════════════════════════════════
-STRICT INSTRUCTIONS:
+STRICT GROUNDING INSTRUCTIONS:
 ══════════════════════════════════
-You MUST follow this exact format for EVERY clinical claim:
 
-**Citation Rules:**
-- For claims supported by retrieved evidence → prefix with [Evidence]: "..."
-- For claims from your medical training → prefix with [Clinical Reasoning]: "..."
-- NEVER state a clinical fact without one of these two prefixes
-- If evidence contradicts your reasoning, STATE THE CONTRADICTION explicitly
+**ABSOLUTE RULES — Every claim MUST be grounded:**
+1. For EVERY clinical claim, you MUST cite the source chunk: [Evidence: Chunk X] where X is the chunk number above
+2. If a claim is a logical deduction based on combining evidence chunks: prefix with [Clinical Reasoning]
+3. You MUST NOT use [Clinical Reasoning] to introduce new medical facts not found in the evidence
+3. If NO source chunk supports a claim → you MUST NOT include that claim
+4. NEVER state a clinical fact without [Evidence: Chunk X] or [Clinical Reasoning] prefix
+5. If evidence contradicts your reasoning, STATE THE CONTRADICTION explicitly
+6. If the evidence is insufficient for a topic, state: "Insufficient evidence from retrieved data for [topic]"
+
+**CITATION ENFORCEMENT:**
+- Count your claims. Every single one needs a tag.
+- If you catch yourself writing a specific percentage, study name, or statistic: VERIFY it is in the evidence chunks. If not → REMOVE IT.
+- Prefer fewer, well-grounded claims over many weakly-supported ones.
 
 Using ALL available context above, provide:
 
 1. **Preliminary Reasoning**: 
    - Identify the key clinical findings from the query and evidence
-   - For EACH finding, cite whether it comes from [Evidence] or [Clinical Reasoning]
+   - For EACH finding, cite the specific chunk: [Evidence: Chunk X] or [Clinical Reasoning]
    - Correlate symptoms with the retrieved medical literature
    - If image context is provided, integrate visual findings into your reasoning
 
 2. **Differential Diagnosis**: 
    - List 3-5 most likely conditions in order of probability
-   - For each, explain supporting evidence with explicit [Evidence] or [Clinical Reasoning] tags
+   - For each, explain supporting evidence with explicit [Evidence: Chunk X] or [Clinical Reasoning] tags
    - Include any conditions suggested by image analysis
    - Assign probability percentages that sum to approximately 100%
 
@@ -69,16 +103,16 @@ Using ALL available context above, provide:
    - Specialist referral if indicated
 
 4. **Evidence Quality Assessment**:
-   - Rate the retrieved evidence relevance: HIGH / MODERATE / LOW
+   - Rate the retrieved evidence relevance: HIGH / MODERATE / LOW / INSUFFICIENT
    - Note any gaps where evidence was insufficient
    - State clearly if this assessment relies primarily on clinical reasoning vs. retrieved evidence
 
-CRITICAL: Do NOT fabricate medical claims. If the retrieved evidence does not cover a topic, explicitly state "No specific evidence retrieved for this aspect" and supplement ONLY with well-established medical knowledge, clearly marked as [Clinical Reasoning].
+CRITICAL EXCEPTION — EVIDENCE TOPIC MISMATCH:
+If the retrieved evidence describes a condition that does NOT match the patient's symptoms (e.g. evidence says Paronychia but patient symptoms strongly indicate Cellulitis), DO NOT force the diagnosis to fit the evidence. You MUST rely on your [Clinical Reasoning] to provide the correct diagnosis and explicitly state that the retrieved evidence was less relevant.
 
 NO-FABRICATION CHECKLIST (apply before outputting):
-- Every clinical claim MUST have an [Evidence], [Clinical Reasoning], or [No Evidence Available] tag
+- Every clinical claim MUST have an [Evidence: Chunk X], [Clinical Reasoning], or [No Evidence Available] tag
 - If you find yourself writing a specific percentage, study name, or statistic: VERIFY it is in the evidence. If not, remove it.
-- CRITICAL EXCEPTION: If the retrieved evidence describes a condition that does NOT match the patient's symptoms (e.g. evidence says Paronychia but patient symptoms strongly indicate Cellulitis), DO NOT force the diagnosis to fit the evidence. You MUST rely on your [Clinical Reasoning] to provide the correct diagnosis and explicitly state that the retrieved evidence was less relevant. This is excellent clinical judgment.
 - Prefer "further investigation needed" over confident claims when evidence is weak"""
 
 REPORT_PROMPT_TEMPLATE = """You are generating a final clinical report based on a prior diagnosis reasoning.
@@ -161,16 +195,20 @@ RETRIEVED EVIDENCE:
 FLAGGED ISSUES:
 {flags}
 
-Your task:
+Your task — STRICT CORRECTION ONLY:
 1. Review each flagged issue against the retrieved evidence
 2. REMOVE or CORRECT any claim that:
    - Contradicts the retrieved evidence
    - Cannot be supported by either the evidence OR well-established medical knowledge
    - Contains fabricated statistics, study names, or specific data points
+   - Lacks a proper [Evidence: Chunk X] or [Clinical Reasoning] citation tag
 3. KEEP claims that are:
-   - Directly supported by retrieved evidence (mark with [Evidence])
+   - Directly supported by retrieved evidence (mark with [Evidence: Chunk X])
    - Well-established medical knowledge (mark with [Clinical Reasoning])
-4. Re-generate a CORRECTED diagnosis that is fully grounded in the evidence
+4. If too many claims are unsupported, it is BETTER to output a shorter, well-grounded diagnosis than a long, speculative one
+5. Re-generate a CORRECTED diagnosis that is fully grounded in the evidence
 
-OUTPUT the corrected diagnosis with proper [Evidence] and [Clinical Reasoning] tags.
-Do NOT add any new claims — only retain or correct existing ones."""
+CRITICAL: Do NOT add any new claims — only retain or correct existing ones.
+If the evidence is truly insufficient, state: "Insufficient evidence from retrieved data to support a confident diagnosis."
+
+OUTPUT the corrected diagnosis with proper citation tags."""

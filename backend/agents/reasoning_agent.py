@@ -7,8 +7,8 @@ class ReasoningAgent:
     and forming a differential diagnosis and reasoning track.
     
     Tuned for maximum accuracy:
-    - temperature=0.1 for deterministic, evidence-grounded reasoning
-    - max_tokens=2500 for thorough chain-of-thought analysis
+    - temperature=0.05 for deterministic, evidence-grounded reasoning
+    - max_tokens=2000 to prevent drifting into unsupported territory
     - Explicit evidence citation via prompt engineering
     """
     
@@ -35,7 +35,7 @@ class ReasoningAgent:
             prompt=diagnosis_prompt,
             system_prompt=MEDICAL_ASSISTANT_SYSTEM_PROMPT,
             temperature=0.05,  # Near-zero temperature = maximum determinism, minimal hallucination
-            max_tokens=2500    # Higher budget = thorough chain-of-thought reasoning
+            max_tokens=2000    # Reduced from 2500 — prevents drifting into unsupported claims
         )
         
         return {

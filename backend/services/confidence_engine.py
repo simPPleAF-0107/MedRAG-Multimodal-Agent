@@ -76,6 +76,27 @@ def evidence_overlap_score(diagnosis: str, evidence: str) -> float:
     return round(score, 4)
 
 
+def symptom_coverage_score(query: str, diagnosis: str) -> tuple[float, int, int]:
+    """
+    Strict evidence coverage scoring.
+    coverage_score = matched_symptoms / total_symptoms
+
+    Extracts medical terms from the query (representing symptoms/patient context)
+    and checks if they are addressed/covered in the final diagnosis.
+    Returns (coverage_score, matched_count, total_count).
+    """
+    query_terms = extract_medical_terms(query)
+    if not query_terms:
+        return 1.0, 0, 0  # No terms to cover
+
+    diag_terms = extract_medical_terms(diagnosis)
+    matched = query_terms & diag_terms
+    score = len(matched) / len(query_terms)
+    
+    logger.debug(f"Symptom Coverage: {len(matched)}/{len(query_terms)} ({score:.2%})")
+    return round(score, 4), len(matched), len(query_terms)
+
+
 class ConfidenceEngine:
     @staticmethod
     def calculate_confidence(
@@ -83,107 +104,102 @@ class ConfidenceEngine:
         hallucination_score: float,
         verification_passed: bool = False,
         evidence_overlap: float = None,
+        evidence_quality: str = None,
+        consistency_score: float = None,
+        coverage_score: float = None,
+        diagnostic_match_score: float = None,
     ) -> float:
         """
-        Calculates a calibrated confidence score (0.0 – 95.0) based on:
-        1. Evidence quality (retrieval relevance scores from LLM reranker)
-        2. Evidence coverage (number of unique sources)
-        3. Hallucination assessment (LLM-graded)
-        4. Evidence overlap (deterministic term-matching — NEW)
-        5. LLM reasoning baseline
-        6. Verification bonus (self-verify loop)
+        Calculates a CALIBRATED confidence score (0.0 – 95.0) using a
+        weighted multiplicative formula instead of arbitrary additive buckets.
 
-        Tuning philosophy:
-        - Lower baseline (58) makes evidence quality matter more
-        - Steeper hallucination penalties to discourage unsupported claims
-        - Evidence overlap provides a deterministic grounding signal
-        - Max capped at 95 — no AI system should claim 100% confidence
+        Formula:
+            confidence = (
+                0.35 × retrieval_score       # avg relevance from reranker
+              + 0.30 × verifier_score        # inverse hallucination
+              + 0.20 × overlap_score         # deterministic grounding
+              + 0.15 × consistency_score     # multi-pass agreement
+            ) × 100
+
+        Adjustments:
+            - Verification bonus (+5 if self-verify passed)
+            - Evidence quality cap (INSUFFICIENT → max 40%)
+            - Hard floor at 15%, hard ceiling at 95%
+
+        Philosophy:
+            Confidence is EARNED from evidence, not gifted from a baseline.
+            No evidence = low confidence. Period.
         """
         logger.info(
             f"Confidence engine: scores={retrieval_scores}, "
             f"hallucination={hallucination_score:.2f}, "
             f"verified={verification_passed}, "
-            f"evidence_overlap={evidence_overlap}"
+            f"evidence_overlap={evidence_overlap}, "
+            f"evidence_quality={evidence_quality}, "
+            f"consistency={consistency_score}"
         )
         try:
             if not retrieval_scores or all(s == 0 for s in retrieval_scores):
-                retrieval_scores = [0.5]
+                retrieval_scores = [0.1]
 
-            # 1. Average retrieval relevance (0-1 from LLM reranker)
+            # ── Component scores (all normalized to 0.0 - 1.0) ───────────────
+
+            # 1. Retrieval relevance: average score from reranker
             avg_retrieval = sum(retrieval_scores) / len(retrieval_scores)
+            avg_retrieval = max(0.0, min(1.0, avg_retrieval))
 
-            # 2. Evidence coverage (more sources = better)
-            num_sources = len([s for s in retrieval_scores if s > 0.01])
+            # 2. Verifier score: inverse of hallucination (low hallucination = high confidence)
+            verifier_score = max(0.0, min(1.0, 1.0 - hallucination_score))
 
-            # 3. LLM Reasoning Baseline — lowered to make evidence matter more
-            llm_baseline = 58
+            # 3. Evidence overlap: deterministic term-matching score
+            overlap_score = evidence_overlap if evidence_overlap is not None else 0.3
 
-            # 4. Evidence boost: Good retrieval adds confidence ON TOP of baseline
-            if avg_retrieval > 0.7:
-                evidence_boost = 25   # Excellent evidence match
-            elif avg_retrieval > 0.5:
-                evidence_boost = 20   # Strong evidence match
-            elif avg_retrieval > 0.3:
-                evidence_boost = 14   # Moderate evidence
-            elif avg_retrieval > 0.1:
-                evidence_boost = 7    # Some relevant evidence
-            else:
-                evidence_boost = 2    # Minimal/no relevant evidence
+            # 4. Consistency score: multi-pass agreement (defaults to 0.7 if not available)
+            consist_score = consistency_score if consistency_score is not None else 0.7
 
-            # 5. Coverage bonus (more sources → higher confidence, up to +10)
-            coverage_bonus = min(num_sources * 0.85, 10)
+            # 5. Diagnostic match score: symptom→disease pattern match boost
+            diag_match = diagnostic_match_score if diagnostic_match_score is not None else 0.5
 
-            # 6. Hallucination adjustment — steeper penalties
-            if hallucination_score <= 0.08:
-                hall_adj = 10    # Near-zero hallucination = strong bonus
-            elif hallucination_score <= 0.15:
-                hall_adj = 7     # Very low hallucination
-            elif hallucination_score <= 0.25:
-                hall_adj = 3     # Low hallucination
-            elif hallucination_score <= 0.35:
-                hall_adj = 0     # Moderate = neutral
-            elif hallucination_score <= 0.5:
-                hall_adj = -10   # Moderate-high = meaningful penalty
-            else:
-                hall_adj = -25   # High hallucination = severe penalty
+            # ── Weighted combination ─────────────────────────────────────────
+            raw_confidence = (
+                0.30 * avg_retrieval
+                + 0.25 * verifier_score
+                + 0.15 * overlap_score
+                + 0.15 * consist_score
+                + 0.15 * diag_match
+            ) * 100
 
-            # 7. Evidence overlap bonus (deterministic grounding signal — NEW)
-            overlap_bonus = 0
-            if evidence_overlap is not None:
-                if evidence_overlap >= 0.6:
-                    overlap_bonus = 6    # Strong term overlap with evidence
-                elif evidence_overlap >= 0.4:
-                    overlap_bonus = 3    # Moderate overlap
-                elif evidence_overlap >= 0.2:
-                    overlap_bonus = 1    # Some overlap
-                else:
-                    overlap_bonus = 0   # Low overlap — neutral (paraphrasing is valid medical writing)
+            # ── Verification bonus ───────────────────────────────────────────
+            if verification_passed:
+                raw_confidence += 5.0
 
-            # 8. Verification bonus — self-verify loop passed
-            verify_bonus = 12 if verification_passed else 0
+            # ── Evidence quality cap ─────────────────────────────────────────
+            if evidence_quality == "INSUFFICIENT":
+                raw_confidence = min(raw_confidence, 40.0)
+            elif evidence_quality == "LOW":
+                raw_confidence = min(raw_confidence, 65.0)
 
-            final_score = (
-                llm_baseline
-                + evidence_boost
-                + coverage_bonus
-                + hall_adj
-                + overlap_bonus
-                + verify_bonus
-            )
+            # ── Strict Evidence Coverage Penalty ─────────────────────────────
+            if coverage_score is not None and coverage_score < 0.70:
+                logger.warning(f"Coverage penalty applied: coverage={coverage_score:.2f} < 0.70")
+                # Force the confidence below the 75% abstention threshold
+                raw_confidence = min(raw_confidence, 68.0)
 
-            # Clamp: minimum 25% (LLM always provides some value), maximum 95%
-            final_score = max(25.0, min(95.0, final_score))
+            # ── Clamp: floor 15%, ceiling 95% ────────────────────────────────
+            final_score = max(15.0, min(95.0, raw_confidence))
 
             logger.info(
-                f"Confidence: baseline={llm_baseline} + evidence_boost={evidence_boost} "
-                f"(avg_ret={avg_retrieval:.2f}) + coverage={coverage_bonus:.1f} "
-                f"+ hall_adj={hall_adj} + overlap={overlap_bonus} "
-                f"+ verify={verify_bonus} = {final_score:.1f}%"
+                f"Confidence: retrieval={avg_retrieval:.2f}×0.35 + "
+                f"verifier={verifier_score:.2f}×0.30 + "
+                f"overlap={overlap_score:.2f}×0.20 + "
+                f"consistency={consist_score:.2f}×0.15 = "
+                f"raw={raw_confidence:.1f} -> final={final_score:.1f}% "
+                f"(quality_cap={evidence_quality}, coverage={coverage_score}, verified={verification_passed})"
             )
             return round(final_score, 2)
         except Exception as e:
             logger.error(f"Confidence engine failed: {e}")
-            return 50.0
+            return 30.0  # Conservative fallback instead of 50
 
 
 def calculate_confidence(
@@ -191,7 +207,29 @@ def calculate_confidence(
     hallucination_score,
     verification_passed=False,
     evidence_overlap=None,
+    evidence_quality=None,
+    consistency_score=None,
+    coverage_score=None,
+    diagnostic_match_score=None,
 ):
     return ConfidenceEngine.calculate_confidence(
-        retrieval_scores, hallucination_score, verification_passed, evidence_overlap
+        retrieval_scores, hallucination_score, verification_passed,
+        evidence_overlap, evidence_quality, consistency_score, coverage_score,
+        diagnostic_match_score,
     )
+
+
+def compute_diagnostic_match_score(extracted_symptoms: list[str], evidence_text: str) -> float:
+    """
+    Compute how well the extracted symptoms match patterns found in the retrieved evidence.
+    Returns a float in [0.0, 1.0].
+    """
+    if not extracted_symptoms:
+        return 0.5  # Neutral if no symptoms extracted
+
+    evidence_lower = evidence_text.lower()
+    matched = sum(1 for s in extracted_symptoms if s.lower() in evidence_lower)
+    score = matched / len(extracted_symptoms)
+
+    logger.debug(f"Diagnostic match: {matched}/{len(extracted_symptoms)} symptoms found in evidence ({score:.2%})")
+    return round(score, 4)

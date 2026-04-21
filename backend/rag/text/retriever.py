@@ -83,22 +83,35 @@ class TextRetriever:
                 return spec
         return None
 
-    async def retrieve(self, query: str, top_k: int = 15, use_hyde: bool = True) -> list[dict]:
+    # Cosine similarity floor: chunks below this are filtered before RRF
+    DENSE_SIMILARITY_FLOOR = 0.30
+
+    async def retrieve(self, query: str, top_k: int = 40, use_hyde: bool = True,
+                       extracted_symptoms: list[str] = None,
+                       specialty_hint: str = None) -> list[dict]:
         """
-        Multi-strategy retrieval pipeline with optional specialty filtering:
+        Multi-strategy retrieval pipeline with symptom-aware filtering:
         1. Expand query with medical entities
         2. Generate HyDE hypothetical document
-        3. Guess target specialty from query
+        3. Use extracted symptoms OR guess specialty from query
         4. Run dense (Qdrant with filter) + sparse (BM25) in parallel
-        5. Fuse results with RRF
+           - Diagnostic DB queried FIRST (PRIMARY)
+           - Reference DB queried SECOND (SUPPORT)
+        5. Boost scoring for diagnostic matches with high symptom overlap
+        6. Fuse results with RRF
         """
         # Step 1: Medical entity expansion for BM25
         expanded_query = self._expand_query_with_entities(query)
         
-        # Step 2: Guess specialty for payload filtering
-        specialty_filter = self._guess_specialty(query)
+        # Step 2: Use symptom extractor hint or guess specialty for payload filtering
+        specialty_filter = specialty_hint or self._guess_specialty(query)
         if specialty_filter:
             logger.info(f"Retriever: Applied specialty filter -> {specialty_filter}")
+        
+        # Step 2b: Build symptom-based payload filters for diagnostic DB
+        symptom_filters = None
+        if extracted_symptoms:
+            logger.info(f"Retriever: {len(extracted_symptoms)} extracted symptoms available for filtering")
         
         # Step 2: HyDE for dense search
         search_query = query
@@ -110,24 +123,58 @@ class TextRetriever:
         # Step 3: Parallel dense + sparse retrieval
         async def get_dense():
             query_embedding = await text_embedder.embed_text(search_query)
-            # Always use unfiltered search — the LLM reranker handles relevance filtering.
-            # A hard specialty filter blocks cross-domain conditions (e.g. diabetic footlesion
-            # spans Endocrinology + Dermatology + Infectious Disease simultaneously).
-            results = await vector_store.query_text(
-                query_embedding=query_embedding,
-                n_results=top_k * 2,
+            
+            # Formulate metadata filter if specialty was guessed
+            filters = {"specialty": specialty_filter} if specialty_filter else None
+            
+            # Query Diagnostic DB FIRST (PRIMARY — high precision mapping)
+            diag_results = await vector_store.query_diagnostic(
+                query_embedding=query_embedding, n_results=int(top_k), filters=filters
             )
-            formatted = []
-            if results and results.get("documents") and results["documents"][0]:
-                scores = results.get("distances", [[]])[0]
-                for i in range(len(results["documents"][0])):
-                    formatted.append({
-                        "id": results["ids"][0][i],
-                        "document": results["documents"][0][i],
-                        "metadata": results["metadatas"][0][i] if results.get("metadatas") else {},
-                        "score": scores[i] if i < len(scores) else 0.5,
-                        "source": "dense_vector"
-                    })
+            
+            # Query Reference DB SECOND (SUPPORT — broad context)
+            ref_results = await vector_store.query_reference(
+                query_embedding=query_embedding, n_results=int(top_k), filters=filters
+            )
+
+            def extract_formatted(res, source_label):
+                f = []
+                if res and res.get("documents") and res["documents"][0]:
+                    scores = res.get("distances", [[]])[0]
+                    for i in range(len(res["documents"][0])):
+                        cosine_score = scores[i] if i < len(scores) else 0.5
+                        if cosine_score < self.DENSE_SIMILARITY_FLOOR: continue
+                        f.append({
+                            "id": res["ids"][0][i],
+                            "document": res["documents"][0][i],
+                            "metadata": res["metadatas"][0][i] if res.get("metadatas") else {},
+                            "score": cosine_score,
+                            "source": source_label
+                        })
+                return f
+
+            diag_formatted = extract_formatted(diag_results, "diagnostic")
+            ref_formatted = extract_formatted(ref_results, "reference")
+            
+            # Boost diagnostic results that have symptom overlap
+            if extracted_symptoms:
+                for chunk in diag_formatted:
+                    meta = chunk.get("metadata", {})
+                    chunk_symptoms = meta.get("symptoms", [])
+                    if isinstance(chunk_symptoms, list) and chunk_symptoms:
+                        overlap = set(s.lower() for s in extracted_symptoms) & set(s.lower() for s in chunk_symptoms)
+                        if overlap:
+                            # Boost score by up to 0.15 based on symptom overlap ratio
+                            boost = 0.15 * (len(overlap) / max(len(extracted_symptoms), 1))
+                            chunk["score"] = min(1.0, chunk["score"] + boost)
+                            chunk["source"] = "diagnostic_boosted"
+                            logger.debug(f"Boosted diagnostic chunk by {boost:.3f} ({len(overlap)} symptom overlap)")
+            
+            formatted = diag_formatted + ref_formatted
+            # Sort by cosine similarity over combined results
+            formatted.sort(key=lambda x: x["score"], reverse=True)
+            formatted = formatted[:int(top_k * 1.5)]
+            logger.info(f"Dense retrieval: {len(formatted)} chunks above similarity floor {self.DENSE_SIMILARITY_FLOOR}")
             return formatted
 
         # Use expanded query for BM25 (better keyword coverage)

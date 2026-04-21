@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import os
 from typing import TypedDict
 from langgraph.graph import StateGraph, END
 from backend.agents.retriever_agent import retriever_agent
@@ -14,17 +15,29 @@ from backend.services.differential_diagnosis import generate_differential
 from backend.services.confidence_engine import calculate_confidence
 from backend.services.bias_checker import check_bias
 from backend.services.recommendation_engine import generate_recommendations
+from backend.services.symptom_extractor import symptom_extractor
 from backend.rag.image.heatmap import generate_heatmap
 from backend.llm.report_generator import report_generator
 
 logger = logging.getLogger(__name__)
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+ENABLE_MULTI_PASS = os.environ.get("ENABLE_MULTI_PASS", "true").lower() == "true"
+HALLUCINATION_ACCEPT_THRESHOLD = 0.20    # Below this = acceptable (was 0.25)
+HALLUCINATION_HARD_REJECT = 0.35         # Above this after retries = hard reject (was 0.50)
+LOW_CONFIDENCE_THRESHOLD = 75.0          # Below this = "I don't know" path (was 40.0)
+MAX_CORRECTION_ATTEMPTS = 2
+
 
 class AgentState(TypedDict):
     text_query: str
     image: any  # Image object
     evidence_text: str
     evidence_image: str
+    evidence_quality: str  # HIGH / MODERATE / LOW / INSUFFICIENT
     retrieval_scores: list  # Real similarity scores from Qdrant
+    extracted_symptoms: list  # Structured symptoms from symptom extractor
+    symptom_specialty_hint: str  # Specialty suggested by symptom body regions
     diagnosis: str
     hallucination_score: float
     hallucination_flags: list  # Flags from hallucination checker for self-correction
@@ -33,12 +46,37 @@ class AgentState(TypedDict):
     emergency_flag: bool
     differential: list
     confidence: float
+    consistency_score: float  # Multi-pass agreement score (P7)
+    diagnostic_match_score: float  # Symptom→disease pattern match score
     recommendations: dict
     heatmap_path: str
     recommended_specialty: str
     verification_passed: bool  # Whether self-verify loop passed
-    correction_attempts: int   # Number of self-correction attempts (max 1)
+    correction_attempts: int   # Number of self-correction attempts (max 2)
     final_payload: dict
+
+# 0. Symptom Extraction Node (NEW — Wave 3)
+async def symptom_extraction_node(state: AgentState) -> AgentState:
+    """Extract structured symptoms from the patient query using the dedicated extractor."""
+    logger.info("LangGraph Node: Extracting Symptoms...")
+    try:
+        extraction = symptom_extractor.extract(state["text_query"])
+        state["extracted_symptoms"] = extraction.get("symptoms", [])
+        
+        # Get specialty hint from body region analysis
+        specialty_hint = symptom_extractor.get_specialty_hint(extraction)
+        state["symptom_specialty_hint"] = specialty_hint or ""
+        
+        logger.info(
+            f"Symptom extraction: {len(state['extracted_symptoms'])} symptoms found, "
+            f"specialty_hint={state['symptom_specialty_hint']}, "
+            f"body_regions={list(extraction.get('body_regions', {}).keys())}"
+        )
+    except Exception as e:
+        logger.error(f"Symptom extraction failed (non-critical): {e}")
+        state["extracted_symptoms"] = []
+        state["symptom_specialty_hint"] = ""
+    return state
 
 # 1. Retriever Component
 async def retrieve_node(state: AgentState) -> AgentState:
@@ -46,13 +84,19 @@ async def retrieve_node(state: AgentState) -> AgentState:
     try:
         retrieval_result = await retriever_agent.run({
             "text_query": state["text_query"],
-            "image": state.get("image")
+            "image": state.get("image"),
+            "extracted_symptoms": state.get("extracted_symptoms", []),
+            "specialty_hint": state.get("symptom_specialty_hint", ""),
         })
         state["evidence_text"] = retrieval_result.get("text_context", "")
         state["evidence_image"] = retrieval_result.get("image_context", "")
         state["retrieval_scores"] = retrieval_result.get("retrieval_scores", [0.5])
+        state["evidence_quality"] = retrieval_result.get("evidence_quality", "LOW")
         
-        logger.info(f"Retrieve node: evidence_len={len(state['evidence_text'])}, scores={state['retrieval_scores']}")
+        logger.info(
+            f"Retrieve node: evidence_len={len(state['evidence_text'])}, "
+            f"scores={state['retrieval_scores']}, quality={state['evidence_quality']}"
+        )
         if state.get("image"):
             state["heatmap_path"] = generate_heatmap(state["image"])
             
@@ -85,22 +129,86 @@ async def retrieve_node(state: AgentState) -> AgentState:
         logger.error(f"Evidence retrieval failed: {e}")
         state["evidence_text"] = ""
         state["retrieval_scores"] = [0.5]
+        state["evidence_quality"] = "INSUFFICIENT"
     return state
 
-# 2. Reasoning Component
+# 2. Reasoning Component with Multi-Pass Consistency (P7)
 async def reasoning_node(state: AgentState) -> AgentState:
     logger.info("LangGraph Node: Reasoning & Diagnosis...")
     try:
+        # Primary reasoning pass
         reasoning_result = await reasoning_agent.run({
             "text_query": state["text_query"],
             "text_context": state.get("evidence_text", ""),
             "image_context": state.get("evidence_image", "")
         })
-        state["diagnosis"] = reasoning_result.get("diagnosis_reasoning", "Unable to generate diagnosis.")
+        primary_diagnosis = reasoning_result.get("diagnosis_reasoning", "Unable to generate diagnosis.")
+        state["diagnosis"] = primary_diagnosis
+
+        # ── P7: Multi-pass consistency check ──────────────────────────────────
+        if ENABLE_MULTI_PASS:
+            try:
+                consistency = await _check_consistency(state, primary_diagnosis)
+                state["consistency_score"] = consistency
+                logger.info(f"Multi-pass consistency score: {consistency:.2f}")
+            except Exception as e:
+                logger.warning(f"Multi-pass consistency check failed (non-critical): {e}")
+                state["consistency_score"] = 0.7  # Neutral fallback
+        else:
+            state["consistency_score"] = 0.7  # Disabled — neutral
+
     except Exception as e:
         logger.error(f"Reasoning agent failed: {e}")
         state["diagnosis"] = "Unable to generate diagnosis due to error."
+        state["consistency_score"] = 0.3
     return state
+
+
+async def _check_consistency(state: AgentState, primary_diagnosis: str) -> float:
+    """
+    Run a second reasoning pass with slightly different temperature
+    and compare the top diagnoses for agreement.
+    Returns a consistency score 0.0 - 1.0.
+    """
+    from backend.llm.openai_client import openai_client
+    from backend.llm.prompt_templates import MEDICAL_ASSISTANT_SYSTEM_PROMPT, DIAGNOSIS_PROMPT_TEMPLATE
+
+    diagnosis_prompt = DIAGNOSIS_PROMPT_TEMPLATE.format(
+        query=state["text_query"],
+        text_context=state.get("evidence_text", "")[:8000],  # Truncate for second pass
+        image_context=state.get("evidence_image", "")
+    )
+
+    second_diagnosis = await openai_client.generate_completion(
+        prompt=diagnosis_prompt,
+        system_prompt=MEDICAL_ASSISTANT_SYSTEM_PROMPT,
+        temperature=0.15,  # Slightly higher than primary (0.05)
+        max_tokens=1500,   # Shorter — we only need the key findings
+        use_cache=False     # Must be a fresh generation
+    )
+
+    # Compare: extract top condition names from both and check overlap
+    from backend.services.confidence_engine import extract_medical_terms
+    terms_1 = extract_medical_terms(primary_diagnosis)
+    terms_2 = extract_medical_terms(second_diagnosis)
+
+    if not terms_1 or not terms_2:
+        return 0.5
+
+    overlap = terms_1 & terms_2
+    union = terms_1 | terms_2
+    jaccard = len(overlap) / len(union) if union else 0.5
+
+    # Scale: Jaccard > 0.6 = high consistency, < 0.3 = concerning
+    if jaccard >= 0.6:
+        return 1.0
+    elif jaccard >= 0.4:
+        return 0.7
+    elif jaccard >= 0.25:
+        return 0.4
+    else:
+        return 0.2
+
 
 # 3. Guardrails / Plugin Parallel Execution
 async def guardrails_node(state: AgentState) -> AgentState:
@@ -167,25 +275,44 @@ async def guardrails_node(state: AgentState) -> AgentState:
 
     return state
 
-# 4. Self-Verification & Correction Node (NEW)
+# 4. Self-Verification & Correction Node (P3: Hard Rejection)
 async def verify_and_correct_node(state: AgentState) -> AgentState:
     """
-    If hallucination_score > 0.12, re-reason with correction instructions.
-    Max 2 retries to avoid infinite loops.
+    Verification loop with hard rejection:
+    - hallucination <= 0.25: PASS (acceptable)
+    - hallucination 0.25-0.50: Re-reason with stricter constraints (max 2 retries)
+    - hallucination > 0.50 after retries: HARD REJECT → replace with safe fallback
     """
     hallucination = state.get("hallucination_score", 0.0)
     attempts = state.get("correction_attempts", 0)
     
-    if hallucination <= 0.35 or attempts >= 2:
-        # Either hallucination is acceptably low, or we've exhausted retries
-        state["verification_passed"] = (hallucination <= 0.35)
-        if state["verification_passed"]:
-            logger.info("[PASS] Verification PASSED: hallucination within acceptable range (<=0.35)")
+    # ── Case 1: Acceptable hallucination ─────────────────────────────────────
+    if hallucination <= HALLUCINATION_ACCEPT_THRESHOLD:
+        state["verification_passed"] = True
+        logger.info(f"[PASS] Verification PASSED: hallucination={hallucination:.2f} <= {HALLUCINATION_ACCEPT_THRESHOLD}")
+        return state
+
+    # ── Case 2: Exhausted retries ────────────────────────────────────────────
+    if attempts >= MAX_CORRECTION_ATTEMPTS:
+        if hallucination > HALLUCINATION_HARD_REJECT:
+            # ── P3+P9: HARD REJECT — replace with safe fallback ──────────────
+            from backend.llm.prompt_templates import INSUFFICIENT_EVIDENCE_RESPONSE
+            logger.warning(
+                f"[HARD REJECT] Hallucination={hallucination:.2f} > {HALLUCINATION_HARD_REJECT} "
+                f"after {attempts} corrections. Replacing with safe fallback."
+            )
+            state["diagnosis"] = INSUFFICIENT_EVIDENCE_RESPONSE
+            state["verification_passed"] = False
         else:
-            logger.warning(f"[WARN] Verification: hallucination={hallucination:.2f} after {attempts} correction(s) -- proceeding with best result")
+            # Moderate hallucination but retries exhausted — proceed with warning
+            state["verification_passed"] = False
+            logger.warning(
+                f"[WARN] Verification: hallucination={hallucination:.2f} after {attempts} "
+                f"correction(s) — proceeding with best result"
+            )
         return state
     
-    # Hallucination too high — trigger self-correction
+    # ── Case 3: Hallucination too high — trigger self-correction ─────────────
     logger.info(f"[RETRY] Self-correction triggered: hallucination={hallucination:.2f}, attempt={attempts+1}")
     
     from backend.llm.openai_client import openai_client
@@ -204,7 +331,7 @@ async def verify_and_correct_node(state: AgentState) -> AgentState:
             prompt=correction_prompt,
             system_prompt=MEDICAL_ASSISTANT_SYSTEM_PROMPT,
             temperature=0.0,   # Fully deterministic for corrections — zero creativity
-            max_tokens=2500,
+            max_tokens=2000,
             use_cache=False  # Never use cached results for corrections
         )
         
@@ -218,9 +345,12 @@ async def verify_and_correct_node(state: AgentState) -> AgentState:
             )
             state["hallucination_score"] = new_hall_score
             state["hallucination_flags"] = new_flags
-            state["verification_passed"] = (new_hall_score <= 0.35)
+            state["verification_passed"] = (new_hall_score <= HALLUCINATION_ACCEPT_THRESHOLD)
             
             logger.info(f"Self-correction result: hallucination {hallucination:.2f} -> {new_hall_score:.2f}")
+
+            # If still too high after this correction, the next invocation will handle it
+            # (via the conditional edge that loops back to this node)
         except Exception as e:
             logger.error(f"Re-check after correction failed: {e}")
             state["verification_passed"] = False
@@ -232,29 +362,83 @@ async def verify_and_correct_node(state: AgentState) -> AgentState:
     
     return state
 
+
+def _should_retry_verification(state: AgentState) -> str:
+    """
+    Conditional edge: after verify_and_correct, decide whether to retry or proceed.
+    Returns the name of the next node.
+    """
+    hallucination = state.get("hallucination_score", 0.0)
+    attempts = state.get("correction_attempts", 0)
+
+    if hallucination > HALLUCINATION_ACCEPT_THRESHOLD and attempts < MAX_CORRECTION_ATTEMPTS:
+        logger.info(f"[LOOP] Re-entering verify_and_correct: hall={hallucination:.2f}, attempts={attempts}")
+        return "verify_and_correct"
+    else:
+        return "reporter"
+
+
 # 5. Final Reporter
 async def reporter_node(state: AgentState) -> AgentState:
     logger.info("LangGraph Node: Final Report Generation...")
     
     try:
         # Compute deterministic evidence overlap for the confidence formula
-        from backend.services.confidence_engine import evidence_overlap_score
+        from backend.services.confidence_engine import evidence_overlap_score, symptom_coverage_score
         overlap = evidence_overlap_score(
             state.get("diagnosis", ""),
             state.get("evidence_text", "")
         )
         
+        # Compute strict symptom coverage score
+        cov_score, _, _ = symptom_coverage_score(
+            state.get("text_query", ""),
+            state.get("diagnosis", "")
+        )
+        
         # Use REAL retrieval scores from the vector search, not hardcoded values
         real_scores = state.get("retrieval_scores", [0.5])
         verification_passed = state.get("verification_passed", False)
+        evidence_quality = state.get("evidence_quality", "LOW")
+        consistency = state.get("consistency_score", 0.7)
+
+        # Compute diagnostic match score from extracted symptoms
+        from backend.services.confidence_engine import compute_diagnostic_match_score
+        diag_match = compute_diagnostic_match_score(
+            state.get("extracted_symptoms", []),
+            state.get("evidence_text", "")
+        )
+        state["diagnostic_match_score"] = diag_match
+
         state["confidence"] = calculate_confidence(
             real_scores, 
             state.get("hallucination_score", 0.0),
             verification_passed=verification_passed,
-            evidence_overlap=overlap
+            evidence_overlap=overlap,
+            evidence_quality=evidence_quality,
+            consistency_score=consistency,
+            coverage_score=cov_score,
+            diagnostic_match_score=diag_match,
         )
     except: state["confidence"] = 0.0
     
+    # ── P9: "I Don't Know" Path (Strict Answer Abstention) ────────────────────
+    low_confidence_flag = False
+    if state["confidence"] < LOW_CONFIDENCE_THRESHOLD:
+        # Only replace if not already replaced by hard rejection
+        if "Unable to Provide Reliable Diagnosis" not in state.get("diagnosis", ""):
+            logger.warning(
+                f"[LOW CONFIDENCE] confidence={state['confidence']:.1f}% < {LOW_CONFIDENCE_THRESHOLD}%. "
+                f"Abstaining from diagnosis."
+            )
+            state["diagnosis"] = (
+                f"⚠️ **Low confidence — consult specialist** (Confidence: {state['confidence']:.1f}%)\n\n"
+                f"The system has low confidence in this assessment due to insufficient or conflicting "
+                f"retrieved evidence. Rather than hallucinate an answer, the AI has abstained from providing a "
+                f"diagnostic evaluation. Please seek professional medical advice."
+            )
+        low_confidence_flag = True
+
     try:
         meal, act = generate_recommendations(state.get("diagnosis", ""), {})
         state["recommendations"] = {"meal_plan": meal, "activity_plan": act}
@@ -325,30 +509,45 @@ async def reporter_node(state: AgentState) -> AgentState:
         "recommended_specialty": state.get("recommended_specialty", "General"),
         "recommendations": state.get("recommendations", {}),
         "evidence": state.get("evidence_text", ""),
+        "evidence_quality": state.get("evidence_quality", "LOW"),
         "heatmap": state.get("heatmap_path", ""),
         "final_report": report_generator.format_final_report(state),
         "confidence_calibration": {"overall_confidence": state.get("confidence", 0.0)},
         "risk_assessment": {"risk_score": state.get("risk_score", 0), "risk_level": state.get("risk_level", "Unknown")},
         "verification_passed": state.get("verification_passed", False),
         "correction_attempts": state.get("correction_attempts", 0),
+        "consistency_score": state.get("consistency_score", 0.7),
         "knowledge_gap_detected": gap_logged,
+        "low_confidence_flag": low_confidence_flag,
     }
     return state
 
-# Setup LangGraph Workflow with Verify-and-Correct Loop
+# Setup LangGraph Workflow with Verify-and-Correct Loop + Conditional Retry
 workflow = StateGraph(AgentState)
 
+workflow.add_node("symptom_extraction", symptom_extraction_node)
 workflow.add_node("retrieve", retrieve_node)
 workflow.add_node("reasoning", reasoning_node)
 workflow.add_node("guardrails", guardrails_node)
 workflow.add_node("verify_and_correct", verify_and_correct_node)
 workflow.add_node("reporter", reporter_node)
 
-workflow.set_entry_point("retrieve")
+workflow.set_entry_point("symptom_extraction")
+workflow.add_edge("symptom_extraction", "retrieve")
 workflow.add_edge("retrieve", "reasoning")
 workflow.add_edge("reasoning", "guardrails")
 workflow.add_edge("guardrails", "verify_and_correct")
-workflow.add_edge("verify_and_correct", "reporter")
+
+# Conditional edge: retry verification or proceed to reporter
+workflow.add_conditional_edges(
+    "verify_and_correct",
+    _should_retry_verification,
+    {
+        "verify_and_correct": "verify_and_correct",
+        "reporter": "reporter",
+    }
+)
+
 workflow.add_edge("reporter", END)
 
 medrag_agent = workflow.compile()
@@ -360,7 +559,10 @@ class CorePipeline:
             "image": image,
             "evidence_text": "",
             "evidence_image": "",
+            "evidence_quality": "LOW",
             "retrieval_scores": [],
+            "extracted_symptoms": [],
+            "symptom_specialty_hint": "",
             "diagnosis": "",
             "hallucination_score": 0.0,
             "hallucination_flags": [],
@@ -369,6 +571,8 @@ class CorePipeline:
             "emergency_flag": False,
             "differential": [],
             "confidence": 0.0,
+            "consistency_score": 0.7,
+            "diagnostic_match_score": 0.5,
             "recommendations": {},
             "heatmap_path": "",
             "recommended_specialty": "General",
@@ -380,4 +584,3 @@ class CorePipeline:
         return final_state["final_payload"]
 
 core_pipeline = CorePipeline()
-

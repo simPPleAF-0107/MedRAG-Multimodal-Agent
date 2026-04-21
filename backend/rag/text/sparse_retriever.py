@@ -56,8 +56,9 @@ class SparseRetriever:
 
     def _get_collection_size(self) -> int:
         try:
-            info = vector_store.client.get_collection(vector_store.text_collection_name)
-            return info.points_count
+            diag_count = vector_store.client.get_collection(vector_store.diagnostic_collection_name).points_count
+            ref_count = vector_store.client.get_collection(vector_store.reference_collection_name).points_count
+            return diag_count + ref_count
         except Exception:
             return -1
 
@@ -114,23 +115,24 @@ class SparseRetriever:
         # Slow path: paginated scroll from Qdrant then pickle
         try:
             all_records = []
-            offset = None
-            page_size = 5000
-
-            while True:
-                records, next_offset = vector_store.client.scroll(
-                    collection_name=vector_store.text_collection_name,
-                    limit=page_size,
-                    offset=offset,
-                    with_payload=True
-                )
-                if not records:
-                    break
-                all_records.extend(records)
-                logger.info(f"BM25 index: loaded {len(all_records)} documents so far...")
-                if next_offset is None:
-                    break
-                offset = next_offset
+            # Scroll both diagnostic and reference collections
+            for coll_name in [vector_store.diagnostic_collection_name, vector_store.reference_collection_name]:
+                offset = None
+                page_size = 5000
+                while True:
+                    records, next_offset = vector_store.client.scroll(
+                        collection_name=coll_name,
+                        limit=page_size,
+                        offset=offset,
+                        with_payload=True
+                    )
+                    if not records:
+                        break
+                    all_records.extend(records)
+                    logger.info(f"BM25 index: loaded {len(all_records)} documents from {coll_name}...")
+                    if next_offset is None:
+                        break
+                    offset = next_offset
 
             if all_records:
                 self.corpus_docs = [r.payload.get("document", "") for r in all_records]

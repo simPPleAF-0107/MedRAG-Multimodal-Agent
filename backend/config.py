@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Ensure .env is loaded strictly into os.environ for external libraries (HuggingFace, etc.)
-env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+env_path = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(dotenv_path=env_path)
 
 # ── Force HuggingFace cache into project folder (must be set BEFORE HF imports) ──
@@ -36,14 +36,14 @@ class Settings(BaseSettings):
     # Vector DB Configuration
     QDRANT_DB_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "vector-db")
     QDRANT_URL: str = ""  # Set to "http://localhost:6333" for Docker Qdrant, empty = local file mode
-    TEXT_EMBEDDING_MODEL: str = "all-mpnet-base-v2"
+    TEXT_EMBEDDING_MODEL: str = "pritamdeka/S-PubMedBert-MS-MARCO"
     IMAGE_EMBEDDING_MODEL: str = "openai/clip-vit-base-patch32"  # Example CLIP model
 
     # SQLite Database Configuration
     DATABASE_URL: str = "sqlite+aiosqlite:///./medrag.db"
 
     model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"),
+        env_file=os.path.join(os.path.dirname(__file__), ".env"),
         env_ignore_empty=True,
         extra="ignore"
     )

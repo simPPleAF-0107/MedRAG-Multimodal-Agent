@@ -21,4 +21,4 @@ apscheduler
 PyJWT
 passlib[bcrypt]
 aiosqlite
-python-jose[cryptography]
+python-jose[cryptography]rank_bm25

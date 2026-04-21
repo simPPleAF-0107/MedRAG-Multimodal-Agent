@@ -22,13 +22,21 @@ class VectorStore:
             os.makedirs(settings.QDRANT_DB_DIR, exist_ok=True)
             self.client = QdrantClient(path=settings.QDRANT_DB_DIR)
         
-        self.text_collection_name = "text_embeddings"
+        self.diagnostic_collection_name = "diagnostic_embeddings"
+        self.reference_collection_name = "reference_embeddings"
         self.image_collection_name = "image_embeddings"
 
-        # Initialize Text Collection
-        if not self.client.collection_exists(self.text_collection_name):
+        # Initialize Diagnostic Collection
+        if not self.client.collection_exists(self.diagnostic_collection_name):
             self.client.create_collection(
-                collection_name=self.text_collection_name,
+                collection_name=self.diagnostic_collection_name,
+                vectors_config=models.VectorParams(size=768, distance=models.Distance.COSINE),
+            )
+            
+        # Initialize Reference Collection
+        if not self.client.collection_exists(self.reference_collection_name):
+            self.client.create_collection(
+                collection_name=self.reference_collection_name,
                 vectors_config=models.VectorParams(size=768, distance=models.Distance.COSINE),
             )
             
@@ -46,72 +54,66 @@ class VectorStore:
         """Create payload field indexes for fast filtered queries (idempotent)."""
         index_fields = {
             "specialty": models.PayloadSchemaType.KEYWORD,
+            "disease": models.PayloadSchemaType.KEYWORD,
+            "symptoms": models.PayloadSchemaType.KEYWORD,
+            "severity": models.PayloadSchemaType.KEYWORD,
             "source": models.PayloadSchemaType.KEYWORD,
             "category": models.PayloadSchemaType.KEYWORD,
             "modality": models.PayloadSchemaType.KEYWORD,
         }
         try:
-            collection_info = self.client.get_collection(self.text_collection_name)
-            existing_indexes = set(collection_info.payload_schema.keys()) if collection_info.payload_schema else set()
-            
-            for field_name, field_type in index_fields.items():
-                if field_name not in existing_indexes:
-                    self.client.create_payload_index(
-                        collection_name=self.text_collection_name,
-                        field_name=field_name,
-                        field_schema=field_type,
-                    )
-                    logger.info(f"Created payload index: {field_name} ({field_type})")
+            for collection_name in [self.diagnostic_collection_name, self.reference_collection_name]:
+                collection_info = self.client.get_collection(collection_name)
+                existing_indexes = set(collection_info.payload_schema.keys()) if collection_info.payload_schema else set()
+                
+                for field_name, field_type in index_fields.items():
+                    if field_name not in existing_indexes:
+                        self.client.create_payload_index(
+                            collection_name=collection_name,
+                            field_name=field_name,
+                            field_schema=field_type,
+                        )
+                        logger.info(f"Created payload index: {field_name} ({field_type}) in {collection_name}")
         except Exception as e:
             logger.warning(f"Payload index creation skipped (non-critical): {e}")
 
-    async def store_text_embedding(self, doc_id: str, embedding: list[float], text: str, metadata: dict = None):
-        """
-        Store a text embedding in Qdrant.
-        """
-        if metadata is None:
-            metadata = {}
-        metadata["document"] = text  # Store text in payload
-        
+    async def store_diagnostic_embedding(self, doc_id: str, embedding: list[float], text: str, metadata: dict = None):
+        if metadata is None: metadata = {}
+        metadata["document"] = text
         self.client.upsert(
-            collection_name=self.text_collection_name,
-            points=[
-                models.PointStruct(
-                    id=doc_id if self._is_valid_uuid(doc_id) else str(uuid.uuid4()), # Qdrant prefers UUIDs
-                    vector=embedding,
-                    payload=metadata
-                )
-            ]
+            collection_name=self.diagnostic_collection_name,
+            points=[models.PointStruct(id=doc_id if self._is_valid_uuid(doc_id) else str(uuid.uuid4()), vector=embedding, payload=metadata)]
         )
 
-    def store_text_batch(self, points: list[dict]):
-        """
-        Bulk-upsert text embeddings into Qdrant for fast seeding.
-        
-        Each item in `points` should be:
-            {"id": str, "vector": list[float], "payload": dict}
-        
-        Payload must include a "document" key with the original text.
-        Call this synchronously from seeding scripts for maximum throughput.
-        """
-        if not points:
-            return
-        
-        qdrant_points = []
-        for p in points:
-            point_id = p["id"] if self._is_valid_uuid(p["id"]) else str(uuid.uuid4())
-            qdrant_points.append(
-                models.PointStruct(
-                    id=point_id,
-                    vector=p["vector"],
-                    payload=p["payload"]
-                )
-            )
-        
+    async def store_reference_embedding(self, doc_id: str, embedding: list[float], text: str, metadata: dict = None):
+        if metadata is None: metadata = {}
+        metadata["document"] = text
         self.client.upsert(
-            collection_name=self.text_collection_name,
-            points=qdrant_points
+            collection_name=self.reference_collection_name,
+            points=[models.PointStruct(id=doc_id if self._is_valid_uuid(doc_id) else str(uuid.uuid4()), vector=embedding, payload=metadata)]
         )
+
+    def store_diagnostic_batch(self, points: list[dict]):
+        if not points: return
+        qdrant_points = [
+            models.PointStruct(
+                id=p["id"] if self._is_valid_uuid(p["id"]) else str(uuid.uuid4()),
+                vector=p["vector"],
+                payload=p["payload"]
+            ) for p in points
+        ]
+        self.client.upsert(collection_name=self.diagnostic_collection_name, points=qdrant_points)
+
+    def store_reference_batch(self, points: list[dict]):
+        if not points: return
+        qdrant_points = [
+            models.PointStruct(
+                id=p["id"] if self._is_valid_uuid(p["id"]) else str(uuid.uuid4()),
+                vector=p["vector"],
+                payload=p["payload"]
+            ) for p in points
+        ]
+        self.client.upsert(collection_name=self.reference_collection_name, points=qdrant_points)
 
     async def store_image_embedding(self, image_id: str, embedding: list[float], metadata: dict = None):
         """
@@ -131,71 +133,51 @@ class VectorStore:
             ]
         )
 
-    async def query_text(self, query_embedding: list[float], n_results: int = 5):
-        """
-        Query the text collection. Returns data in a format similar to ChromaDB for backward compatibility.
-        """
-        results = self.client.query_points(
-            collection_name=self.text_collection_name,
-            query=query_embedding,
-            limit=n_results
-        ).points
-        
-        # Format for legacy compatibility
-        formatted = {
-            "ids": [[res.id for res in results]],
-            "documents": [[res.payload.get("document", "") for res in results]],
-            "metadatas": [[res.payload for res in results]],
-            "distances": [[res.score for res in results]]
-        }
-        return formatted
+    async def query_diagnostic(self, query_embedding: list[float], n_results: int = 5, filters: dict = None):
+        """Query the highly structured Diagnostic DB. Returns top matches reflecting Symptom->Disease mapping."""
+        return await self._query_collection(self.diagnostic_collection_name, query_embedding, n_results, filters)
 
-    async def query_text_filtered(self, query_embedding: list[float], n_results: int = 5,
-                                   specialty: str = None, source: str = None, category: str = None):
-        """
-        Query the text collection with optional payload filters.
-        Filters narrow the search to documents matching the specified metadata fields.
-        Falls back to unfiltered search if the filtered query returns too few results.
-        """
+    async def query_reference(self, query_embedding: list[float], n_results: int = 5, filters: dict = None):
+        """Query the general Reference DB (PubMed, Guidelines, etc)."""
+        return await self._query_collection(self.reference_collection_name, query_embedding, n_results, filters)
+
+    async def _query_collection(self, collection_name: str, query_embedding: list[float], n_results: int = 5, filters: dict = None):
         must_conditions = []
-        if specialty:
-            must_conditions.append(
-                models.FieldCondition(key="specialty", match=models.MatchValue(value=specialty))
-            )
-        if source:
-            must_conditions.append(
-                models.FieldCondition(key="source", match=models.MatchValue(value=source))
-            )
-        if category:
-            must_conditions.append(
-                models.FieldCondition(key="category", match=models.MatchValue(value=category))
-            )
+        query_filter = None
+        if filters:
+            for key, val in filters.items():
+                if val: must_conditions.append(models.FieldCondition(key=key, match=models.MatchValue(value=val)))
+            if must_conditions:
+                query_filter = models.Filter(must=must_conditions)
         
-        query_filter = models.Filter(must=must_conditions) if must_conditions else None
-        
-        results = self.client.query_points(
-            collection_name=self.text_collection_name,
-            query=query_embedding,
-            query_filter=query_filter,
-            limit=n_results
-        ).points
-        
-        # Fallback: if filtered query returns too few, run unfiltered
-        if len(results) < 3 and query_filter:
-            logger.info(f"Filtered query returned {len(results)} results, falling back to unfiltered")
+        try:
             results = self.client.query_points(
-                collection_name=self.text_collection_name,
+                collection_name=collection_name,
                 query=query_embedding,
+                query_filter=query_filter,
                 limit=n_results
             ).points
-        
-        formatted = {
+        except Exception as e:
+            logger.warning(f"Query on {collection_name} failed: {e}")
+            results = []
+            
+        # Fallback to unfiltered if too restrictive
+        if len(results) < 2 and query_filter:
+            logger.info(f"Filtered query returned {len(results)} results in {collection_name}, falling back to unfiltered.")
+            try:
+                results = self.client.query_points(
+                    collection_name=collection_name,
+                    query=query_embedding,
+                    limit=n_results
+                ).points
+            except Exception: pass
+            
+        return {
             "ids": [[res.id for res in results]],
             "documents": [[res.payload.get("document", "") for res in results]],
             "metadatas": [[res.payload for res in results]],
             "distances": [[res.score for res in results]]
         }
-        return formatted
 
     async def query_image(self, query_embedding: list[float], n_results: int = 5):
         """
@@ -214,13 +196,13 @@ class VectorStore:
         }
         return formatted
 
-    def get_text_count(self) -> int:
-        """Return the current number of points in the text collection."""
-        try:
-            info = self.client.get_collection(self.text_collection_name)
-            return info.points_count
-        except Exception:
-            return 0
+    def get_diagnostic_count(self) -> int:
+        try: return self.client.get_collection(self.diagnostic_collection_name).points_count
+        except Exception: return 0
+
+    def get_reference_count(self) -> int:
+        try: return self.client.get_collection(self.reference_collection_name).points_count
+        except Exception: return 0
 
     def _is_valid_uuid(self, val):
         try:

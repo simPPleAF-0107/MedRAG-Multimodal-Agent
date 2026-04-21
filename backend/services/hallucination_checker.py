@@ -16,9 +16,9 @@ class HallucinationChecker:
           Stage 2 — LLM-graded: semantic claim verification (nuanced, but stochastic)
 
         The final score is a weighted blend:
-          final = 0.35 * deterministic + 0.65 * llm_score
+          final = 0.45 * deterministic + 0.55 * llm_score
 
-        This ensures a reproducible baseline while still leveraging LLM judgment.
+        Increased deterministic weight (was 0.35) for more stable, reproducible scoring.
         """
         logger.info("Running two-stage hallucination checker...")
 
@@ -46,11 +46,12 @@ GENERATED REPORT:
 
 STRICT SCORING RULES:
 1. Check if clinical claims are supported by the retrieved evidence
-2. Claims marked [Evidence] MUST have supporting text in the evidence — if not, flag as unsupported
-3. Claims marked [Clinical Reasoning] should be well-established medical facts — flag if obscure or questionable
-4. Claims WITHOUT any citation tag are automatically suspicious — flag them
-5. If the evidence topic matches the report topic, score based on factual alignment:
-   - 0.0-0.05: All claims well-grounded in evidence, properly cited, no gaps
+2. Claims citing [Evidence: Chunk X] MUST have matching content in the evidence — if not, flag as unsupported
+3. Claims marked [Clinical Reasoning] should be well-established textbook facts — flag if obscure or questionable
+4. Claims WITHOUT any citation tag are automatically SUSPICIOUS — flag and penalize them
+5. UNCITED CLAIMS ARE PENALIZED: Any clinical fact stated without [Evidence: Chunk X] or [Clinical Reasoning] increases the score
+6. If the evidence topic matches the report topic, score based on factual alignment:
+   - 0.0-0.05: All claims well-grounded in evidence, properly cited with chunk numbers, no gaps
    - 0.05-0.10: Excellent grounding with trivial summary differences
    - 0.10-0.15: Minor gaps, but all claims are medically accurate and mostly cited
    - 0.15-0.25: Some uncited claims, but no contradictions
@@ -58,17 +59,13 @@ STRICT SCORING RULES:
    - 0.40-0.60: Contains claims that clearly go beyond evidence
    - 0.60-0.80: Contains claims that contradict evidence
    - 0.80-1.0: Fabricated data, invented studies, or dangerous misinformation
-6. CRITICAL EXCEPTION — EVIDENCE TOPIC MISMATCH: If the retrieved evidence is clearly about a DIFFERENT medical
-   condition than the patient query (e.g. evidence describes paronychia but patient has a diabetic foot lesion,
-   or evidence is about asthma but patient has cardiac chest pain), then:
+7. CRITICAL EXCEPTION — EVIDENCE TOPIC MISMATCH: If the retrieved evidence is clearly about a DIFFERENT medical
+   condition than the patient query, then:
    - The model is EXPECTED to use [Clinical Reasoning] instead of citing the irrelevant evidence
    - This is CORRECT and SAFE clinical judgment, NOT a hallucination
    - Score such responses 0.05-0.20 depending on medical accuracy of the [Clinical Reasoning] claims
    - If the model correctly identifies the mismatch and still provides an accurate diagnosis: score 0.05-0.10
    - Only penalize if the [Clinical Reasoning] claims themselves are medically inaccurate or dangerous
-7. CRITICAL EXCEPTION FOR CLINICAL REASONING: If the retrieved evidence describes a condition that poorly matches
-   the patient's symptoms, and the LLM uses [Clinical Reasoning] to diagnose a more accurate condition, DO NOT
-   flag this as a hallucination. Score this scenario as 0.0-0.15 depending on clinical accuracy.
 
 IMPORTANT: Be PRECISE. Do not round to convenient numbers like 0.1 or 0.2. Give exact scores like 0.07 or 0.13.
 
@@ -78,7 +75,7 @@ Return brief, specific flags on subsequent lines (what was flagged and why)."""
         try:
             llm_response = await openai_client.generate_completion(
                 prompt=prompt,
-                system_prompt="You are a strict medical auditor. Grade hallucination precisely. Be fair but thorough — every unsupported claim matters.",
+                system_prompt="You are a strict medical auditor. Grade hallucination precisely. Be fair but thorough — every unsupported claim matters. Penalize uncited claims.",
                 temperature=0.0,  # Deterministic scoring
                 max_tokens=400
             )
@@ -94,8 +91,8 @@ Return brief, specific flags on subsequent lines (what was flagged and why)."""
 
             flags = [l.strip() for l in lines[1:] if l.strip()] or ["Audited via strict LLM checker."]
 
-            # ── Blend: 35% deterministic + 65% LLM ──────────────────────────
-            blended_score = round(0.35 * deterministic_score + 0.65 * llm_score, 4)
+            # ── Blend: 45% deterministic + 55% LLM ──────────────────────────
+            blended_score = round(0.45 * deterministic_score + 0.55 * llm_score, 4)
 
             flags.insert(0, f"Deterministic overlap: {overlap:.2f} | LLM score: {llm_score:.2f} | Blended: {blended_score:.3f}")
 
@@ -114,4 +111,3 @@ Return brief, specific flags on subsequent lines (what was flagged and why)."""
 
 async def detect_hallucination(response, retrieved_context):
     return await HallucinationChecker.detect_hallucination(response, retrieved_context)
-

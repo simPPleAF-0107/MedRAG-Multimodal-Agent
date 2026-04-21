@@ -32,7 +32,8 @@ async def run_benchmark():
     
     print("=" * 70)
     print(" >>> MedRAG RETRIEVAL PERFORMANCE BENCHMARK <<<")
-    print(f" Total Text Documents Available: {vector_store.get_text_count():,}")
+    total_count = vector_store.get_diagnostic_count() + vector_store.get_reference_count()
+    print(f" Total Text Documents Available: {total_count:,}")
     print("=" * 70)
     
     total_time = 0

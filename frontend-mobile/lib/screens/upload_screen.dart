@@ -35,7 +35,7 @@ class _UploadScreenState extends State<UploadScreen> {
   Future<void> _pickTextFile() async {
     UxUtils.hapticLight();
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['txt', 'pdf', 'doc', 'docx', 'csv', 'json'],
         withData: true,

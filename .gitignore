@@ -34,6 +34,8 @@ mobile_app/.flutter-plugins-dependencies
 
 # ═══ Uploads & Data ═══
 data/uploads/
+data/processed/
+data/raw/
 
 # ═══ Logs ═══
 *.log
@@ -55,3 +57,10 @@ desktop.ini
 frontend-mobile/cmdline-tools.zip
 frontend-mobile/*.zip
 *.zip
+
+# Virtual Environments
+backend/venv/
+venv/
+
+# Vector Db Docker Data
+vector-db-docker/
